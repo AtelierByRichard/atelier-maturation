@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { supabase } from '../lib/supabase.js';
 
 const NAV = [
   {
@@ -87,6 +88,10 @@ function MobileNavItem({ to, label, icon }) {
   );
 }
 
+async function handleLogout() {
+  await supabase.auth.signOut();
+}
+
 export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -99,8 +104,19 @@ export default function Layout() {
             <NavItem key={n.to} {...n} />
           ))}
         </nav>
-        <div className="px-5 py-4 border-t border-stone-200">
-          <p className="text-xs text-stone-400">v0.1 — Bali 🌴</p>
+        <div className="px-3 py-4 border-t border-stone-200 space-y-2">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800 transition-colors"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Sign out</span>
+          </button>
+          <p className="text-xs text-stone-400 px-3">v0.1 — Bali 🌴</p>
         </div>
       </aside>
 
