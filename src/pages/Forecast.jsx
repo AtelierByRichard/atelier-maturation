@@ -95,6 +95,8 @@ export default function Forecast() {
     if (!reportRef.current || exporting) return;
     setExporting(true);
 
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
     // Reveal the branded header inside the capture zone
     if (printHeaderRef.current) printHeaderRef.current.style.display = 'flex';
 
@@ -102,8 +104,9 @@ export default function Forecast() {
     await new Promise(r => setTimeout(r, 120));
 
     try {
+      // Use a lower scale on mobile to avoid memory issues
       const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
+        scale: isMobile ? 1.5 : 2,
         backgroundColor: '#ffffff',
         useCORS: true,
         logging: false,
@@ -113,12 +116,11 @@ export default function Forecast() {
       const pdf      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pdfW     = pdf.internal.pageSize.getWidth();
       const pdfH     = pdf.internal.pageSize.getHeight();
-      const imgRatio = pdfW / canvas.width;           // mm per px
-      const totalH   = canvas.height * imgRatio;      // total height in mm
+      const imgRatio = pdfW / canvas.width;
+      const totalH   = canvas.height * imgRatio;
 
-      // Render image across pages by shifting the Y origin each time
       const imgData = canvas.toDataURL('image/png');
-      let pageTop = 0; // mm offset into the image for each page
+      let pageTop = 0;
 
       while (pageTop < totalH) {
         if (pageTop > 0) pdf.addPage();
@@ -127,10 +129,30 @@ export default function Forecast() {
       }
 
       const dateStr = new Date().toISOString().slice(0, 10);
-      pdf.save(`atelier-forecast-${dateStr}.pdf`);
+      const fileName = `atelier-forecast-${dateStr}.pdf`;
+
+      if (isMobile && navigator.share) {
+        // iOS / Android: use the native Share Sheet so the user can send via
+        // WhatsApp, Mail, AirDrop, etc. directly from the button
+        const blob = pdf.output('blob');
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: 'Atelier Forecast Report', files: [file] });
+        } else {
+          // Fallback: open PDF inline in browser tab
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        }
+      } else {
+        // Desktop: standard download
+        pdf.save(fileName);
+      }
     } catch (err) {
-      console.error('PDF export failed:', err);
-      alert('PDF export failed. Please try again.');
+      // User cancelled the share sheet — not a real error
+      if (err?.name !== 'AbortError') {
+        console.error('PDF export failed:', err);
+        alert('PDF export failed. Please try again.');
+      }
     } finally {
       if (printHeaderRef.current) printHeaderRef.current.style.display = 'none';
       setExporting(false);
