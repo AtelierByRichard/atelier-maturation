@@ -100,12 +100,17 @@ export default function Forecast() {
     // Reveal the branded header inside the capture zone
     if (printHeaderRef.current) printHeaderRef.current.style.display = 'flex';
 
+    // Add padding so the PDF has proper margins
+    const el = reportRef.current;
+    el.style.padding    = '40px 48px';
+    el.style.background = '#ffffff';
+
     // Small delay so React flushes the display change
-    await new Promise(r => setTimeout(r, 120));
+    await new Promise(r => setTimeout(r, 150));
 
     try {
       // Use a lower scale on mobile to avoid memory issues
-      const canvas = await html2canvas(reportRef.current, {
+      const canvas = await html2canvas(el, {
         scale: isMobile ? 1.5 : 2,
         backgroundColor: '#ffffff',
         useCORS: true,
@@ -155,6 +160,8 @@ export default function Forecast() {
       }
     } finally {
       if (printHeaderRef.current) printHeaderRef.current.style.display = 'none';
+      el.style.padding    = '';
+      el.style.background = '';
       setExporting(false);
     }
   };
@@ -302,15 +309,16 @@ export default function Forecast() {
         <div
           ref={printHeaderRef}
           style={{ display: 'none' }}
-          className="items-center justify-between pb-5 mb-2 border-b-2 border-stone-800"
+          className="items-center justify-between pb-5 mb-4 border-b border-stone-300"
         >
-          <div>
-            <p className="text-2xl font-bold text-stone-900 tracking-tight">Atelier by Richard</p>
-            <p className="text-sm text-stone-500 mt-0.5">artisan charcuterie — Bali</p>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Atelier by Richard"
+            style={{ width: '180px', height: 'auto' }}
+          />
           <div className="text-right">
-            <p className="text-lg font-semibold text-stone-800">Forecast Report</p>
-            <p className="text-xs text-stone-500 mt-1">
+            <p className="text-xl font-bold text-stone-900 tracking-tight">Forecast Report</p>
+            <p className="text-sm text-stone-500 mt-1">
               {printDate}&nbsp;·&nbsp;{horizon}-week horizon&nbsp;·&nbsp;{isKg ? 'Kg' : 'Pieces'}
             </p>
           </div>
