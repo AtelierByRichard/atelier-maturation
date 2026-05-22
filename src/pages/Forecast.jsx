@@ -134,7 +134,7 @@ export default function Forecast() {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(13);
       pdf.setTextColor(30, 30, 30);
-      pdf.text('Forecast Report', pdfW - mRight, logoY + 5, { align: 'right' });
+      pdf.text('IN-STOCK MATURATION READY REPORT', pdfW - mRight, logoY + 5, { align: 'right' });
 
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8);
@@ -304,6 +304,7 @@ export default function Forecast() {
           <div className="flex items-center gap-2">
             <label className="text-sm text-stone-500">Horizon:</label>
             <select className="input w-auto" value={horizon} onChange={e => setHorizon(Number(e.target.value))}>
+              <option value={1}>1 week</option>
               <option value={4}>4 weeks</option>
               <option value={8}>8 weeks</option>
               <option value={12}>12 weeks</option>
