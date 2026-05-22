@@ -80,8 +80,7 @@ export default function Forecast() {
   const [unit,    setUnit]    = useState('kg'); // 'kg' | 'pieces'
   const [exporting, setExporting] = useState(false);
 
-  const reportRef      = useRef(null);
-  const printHeaderRef = useRef(null);
+  const reportRef = useRef(null);
 
   useEffect(() => {
     fetchBatches(['maturing', 'ready'])
@@ -97,20 +96,61 @@ export default function Forecast() {
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    // Reveal the branded header inside the capture zone
-    if (printHeaderRef.current) printHeaderRef.current.style.display = 'flex';
-
-    // Add padding so the PDF has proper margins
-    const el = reportRef.current;
-    el.style.padding    = '40px 48px';
-    el.style.background = '#ffffff';
-
-    // Small delay so React flushes the display change
-    await new Promise(r => setTimeout(r, 150));
-
     try {
-      // Use a lower scale on mobile to avoid memory issues
-      const canvas = await html2canvas(el, {
+      // Page & margin setup (Word-standard margins)
+      const pdf        = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfW       = 210;   // A4 width mm
+      const pdfH       = 297;   // A4 height mm
+      const mTop       = 25.4;  // 2.54 cm
+      const mBottom    = 25.4;  // 2.54 cm
+      const mLeft      = 19.0;  // 1.90 cm
+      const mRight     = 19.0;  // 1.90 cm
+      const usableW    = pdfW - mLeft - mRight;   // 172 mm
+
+      // ── 1. Logo (top-left, within top margin) ─────────────────────────────
+      const logoImg = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width  = img.width;
+          c.height = img.height;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve({ data: c.toDataURL('image/png'), w: img.width, h: img.height });
+        };
+        img.onerror = reject;
+        img.src = window.location.origin + '/logo.png';
+      });
+
+      const logoH  = 10;                                  // mm — small logo
+      const logoW  = (logoImg.w / logoImg.h) * logoH;    // keep ratio
+      const logoY  = mTop - logoH - 4;                   // sits just above content area
+      pdf.addImage(logoImg.data, 'PNG', mLeft, logoY, logoW, logoH);
+
+      // ── 2. "Forecast Report" + date line (top-right) ──────────────────────
+      const printDate = new Date().toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      });
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(13);
+      pdf.setTextColor(30, 30, 30);
+      pdf.text('Forecast Report', pdfW - mRight, logoY + 5, { align: 'right' });
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(120, 120, 120);
+      pdf.text(
+        `${printDate} · ${horizon}-week horizon · ${isKg ? 'Kg' : 'Pieces'}`,
+        pdfW - mRight, logoY + 10, { align: 'right' }
+      );
+
+      // ── 3. Thin separator line at top of content area ─────────────────────
+      pdf.setDrawColor(210, 210, 210);
+      pdf.setLineWidth(0.3);
+      pdf.line(mLeft, mTop, pdfW - mRight, mTop);
+
+      // ── 4. Capture data content only (no header div) ──────────────────────
+      const canvas = await html2canvas(reportRef.current, {
         scale: isMobile ? 1.5 : 2,
         backgroundColor: '#ffffff',
         useCORS: true,
@@ -118,50 +158,51 @@ export default function Forecast() {
         allowTaint: true,
       });
 
-      const pdf      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfW     = pdf.internal.pageSize.getWidth();
-      const pdfH     = pdf.internal.pageSize.getHeight();
-      const imgRatio = pdfW / canvas.width;
-      const totalH   = canvas.height * imgRatio;
+      const imgData    = canvas.toDataURL('image/png');
+      const imgRatio   = usableW / canvas.width;          // mm per pixel
+      const totalImgH  = canvas.height * imgRatio;         // total image height in mm
 
-      const imgData = canvas.toDataURL('image/png');
-      let pageTop = 0;
+      // Content starts just below the separator
+      const contentY   = mTop + 4;
+      const page1H     = pdfH - contentY - mBottom;       // usable height on page 1
+      const pageNH     = pdfH - mTop    - mBottom;        // usable height on subsequent pages
 
-      while (pageTop < totalH) {
-        if (pageTop > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, -pageTop, pdfW, totalH);
-        pageTop += pdfH;
+      // Page 1
+      pdf.addImage(imgData, 'PNG', mLeft, contentY, usableW, totalImgH);
+
+      // Additional pages if content overflows
+      if (totalImgH > page1H) {
+        let consumed = page1H;
+        while (consumed < totalImgH) {
+          pdf.addPage();
+          // Shift the image up so the next slice starts at mTop
+          pdf.addImage(imgData, 'PNG', mLeft, mTop - consumed, usableW, totalImgH);
+          consumed += pageNH;
+        }
       }
 
-      const dateStr = new Date().toISOString().slice(0, 10);
+      // ── 5. Save / Share ───────────────────────────────────────────────────
+      const dateStr  = new Date().toISOString().slice(0, 10);
       const fileName = `atelier-forecast-${dateStr}.pdf`;
 
       if (isMobile && navigator.share) {
-        // iOS / Android: use the native Share Sheet so the user can send via
-        // WhatsApp, Mail, AirDrop, etc. directly from the button
         const blob = pdf.output('blob');
         const file = new File([blob], fileName, { type: 'application/pdf' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ title: 'Atelier Forecast Report', files: [file] });
         } else {
-          // Fallback: open PDF inline in browser tab
-          const url = URL.createObjectURL(blob);
-          window.open(url, '_blank');
+          window.open(URL.createObjectURL(blob), '_blank');
         }
       } else {
-        // Desktop: standard download
         pdf.save(fileName);
       }
+
     } catch (err) {
-      // User cancelled the share sheet — not a real error
       if (err?.name !== 'AbortError') {
         console.error('PDF export failed:', err);
         alert('PDF export failed. Please try again.');
       }
     } finally {
-      if (printHeaderRef.current) printHeaderRef.current.style.display = 'none';
-      el.style.padding    = '';
-      el.style.background = '';
       setExporting(false);
     }
   };
@@ -231,8 +272,6 @@ export default function Forecast() {
     byProduct[name].totalPieces += b.current_pieces    || 0;
     byProduct[name].batches.push(b);
   }
-
-  const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-6">
@@ -304,25 +343,6 @@ export default function Forecast() {
 
       {/* ── Report content — this div is captured for the PDF ── */}
       <div ref={reportRef} className="space-y-6">
-
-        {/* Branded header — hidden on screen, shown during PDF capture */}
-        <div
-          ref={printHeaderRef}
-          style={{ display: 'none' }}
-          className="items-center justify-between pb-5 mb-4 border-b border-stone-300"
-        >
-          <img
-            src="/logo.png"
-            alt="Atelier by Richard"
-            style={{ width: '180px', height: 'auto' }}
-          />
-          <div className="text-right">
-            <p className="text-xl font-bold text-stone-900 tracking-tight">Forecast Report</p>
-            <p className="text-sm text-stone-500 mt-1">
-              {printDate}&nbsp;·&nbsp;{horizon}-week horizon&nbsp;·&nbsp;{isKg ? 'Kg' : 'Pieces'}
-            </p>
-          </div>
-        </div>
 
         {/* Chart */}
         <div className="card p-5">
