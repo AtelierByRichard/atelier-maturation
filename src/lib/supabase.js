@@ -72,7 +72,7 @@ export async function setProductActive(id, active) {
 export async function fetchPigs(limit = 50) {
   const { data, error } = await supabase
     .from('pigs')
-    .select('*, batches(count)')
+    .select('*')
     .order('receiving_date', { ascending: false })
     .limit(limit);
   handleError(error, 'fetchPigs');
@@ -108,6 +108,32 @@ export async function updatePig(id, updates) {
     .single();
   handleError(error, 'updatePig');
   return data;
+}
+
+/**
+ * Number of product batches attached to a pig reception.
+ * Used to guard deletion — a reception with batches shouldn't be deleted here.
+ */
+export async function countBatchesForPig(pigId) {
+  const { count, error } = await supabase
+    .from('batches')
+    .select('id', { count: 'exact', head: true })
+    .eq('pig_id', pigId);
+  handleError(error, 'countBatchesForPig');
+  return count || 0;
+}
+
+/**
+ * Delete a pig reception. Caller should check countBatchesForPig first —
+ * batches cascade-delete at the DB level (ON DELETE CASCADE), so this is
+ * only safe to expose in the UI for receptions with zero batches.
+ */
+export async function deletePig(id) {
+  const { error } = await supabase
+    .from('pigs')
+    .delete()
+    .eq('id', id);
+  handleError(error, 'deletePig');
 }
 
 // ── BATCHES ───────────────────────────────────────────────

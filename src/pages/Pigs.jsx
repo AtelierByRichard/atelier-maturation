@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum } from '../lib/supabase.js';
+import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum, deletePig, countBatchesForPig } from '../lib/supabase.js';
 import {
   pigCode, batchCode, calcTotalDays, calcReadyDate,
   formatDate, toISO, today,
@@ -329,6 +329,22 @@ export default function Pigs() {
     }));
   }
 
+  async function handleDeletePig(pig) {
+    try {
+      const count = await countBatchesForPig(pig.id);
+      if (count > 0) {
+        alert(`Can't delete ${pig.master_code} — it has ${count} product batch${count > 1 ? 'es' : ''} attached. Remove those first.`);
+        return;
+      }
+      if (!window.confirm(`Delete reception ${pig.master_code}? This can't be undone.`)) return;
+      await deletePig(pig.id);
+      setPigs(prev => prev.filter(p => p.id !== pig.id));
+      if (activePig?.id === pig.id) setActivePig(null);
+    } catch (err) {
+      alert(`Delete failed: ${err.message}`);
+    }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-600 border-t-transparent" />
@@ -402,7 +418,7 @@ export default function Pigs() {
             <p className="text-sm mt-1">Start by registering your first pig.</p>
           </div>
         ) : (
-          pigs.map(pig => (
+          pigs.filter(pig => pig.id !== activePig?.id).map(pig => (
             <div key={pig.id} className="card p-4 flex items-center justify-between">
               <div>
                 <p className="font-mono font-semibold text-stone-800">{pig.master_code}</p>
@@ -418,6 +434,13 @@ export default function Pigs() {
                 <Link to={`/pigs/${pig.id}`} className="btn-secondary text-xs">
                   View →
                 </Link>
+                <button
+                  className="text-xs text-red-500 hover:text-red-700 px-2"
+                  onClick={() => handleDeletePig(pig)}
+                  title="Delete reception"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))

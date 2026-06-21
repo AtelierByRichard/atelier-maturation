@@ -12,7 +12,7 @@ export function pigCode(pig) {
   const prefix = pig.prefix || 'BH';
   const weight = Number(pig.gross_weight_kg).toFixed(1);
   const date = pig.receiving_date.replace(/-/g, '');   // "2026-03-02" → "20260302"
-  return `${prefix} ${weight}-${date}`;
+  return `${prefix} ${date}-${weight}`;
 }
 
 /**
@@ -199,7 +199,7 @@ export function buildStages(product, dimension_cm, cutWeightKg) {
 
   // Standard dry-cured path
   const cure = calcCureDays(product, dimension_cm);
-  push('Salage à sec', cure);
+  push('Dry Cure Process', cure);
 
   if (product.category === 'round' || product.category === 'flat') {
     push('Repos', 2);
