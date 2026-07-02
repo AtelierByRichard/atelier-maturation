@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   fetchReadyBatches,
   fetchUpcomingBatches,
@@ -85,6 +87,8 @@ export default function Dashboard() {
   const [allActive, setAllActive] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef(null);
 
   useEffect(() => {
     async function load() {
@@ -105,6 +109,100 @@ export default function Dashboard() {
     }
     load();
   }, []);
+
+  const handleExportPDF = async () => {
+    if (!reportRef.current || exporting) return;
+    setExporting(true);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    try {
+      const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfW   = 210;
+      const pdfH   = 297;
+      const mTop   = 25.4;
+      const mBottom = 25.4;
+      const mLeft  = 19.0;
+      const mRight = 19.0;
+      const usableW = pdfW - mLeft - mRight;
+
+      const logoImg = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = img.width; c.height = img.height;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve({ data: c.toDataURL('image/png'), w: img.width, h: img.height });
+        };
+        img.onerror = reject;
+        img.src = window.location.origin + '/logo.png';
+      });
+
+      const logoH = 10;
+      const logoW = (logoImg.w / logoImg.h) * logoH;
+      const logoY = mTop - logoH - 4;
+      pdf.addImage(logoImg.data, 'PNG', mLeft, logoY, logoW, logoH);
+
+      const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(13);
+      pdf.setTextColor(30, 30, 30);
+      pdf.text('MATURATION STOCK REPORT', pdfW - mRight, logoY + 5, { align: 'right' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(120, 120, 120);
+      pdf.text(printDate, pdfW - mRight, logoY + 10, { align: 'right' });
+
+      pdf.setDrawColor(210, 210, 210);
+      pdf.setLineWidth(0.3);
+      pdf.line(mLeft, mTop, pdfW - mRight, mTop);
+
+      const canvas = await html2canvas(reportRef.current, {
+        scale: isMobile ? 1.5 : 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+      });
+
+      const imgData   = canvas.toDataURL('image/png');
+      const imgRatio  = usableW / canvas.width;
+      const totalImgH = canvas.height * imgRatio;
+      const contentY  = mTop + 4;
+      const page1H    = pdfH - contentY - mBottom;
+      const pageNH    = pdfH - mTop - mBottom;
+
+      pdf.addImage(imgData, 'PNG', mLeft, contentY, usableW, totalImgH);
+      if (totalImgH > page1H) {
+        let consumed = page1H;
+        while (consumed < totalImgH) {
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', mLeft, mTop - consumed, usableW, totalImgH);
+          consumed += pageNH;
+        }
+      }
+
+      const dateStr  = new Date().toISOString().slice(0, 10);
+      const fileName = `atelier-stock-${dateStr}.pdf`;
+      if (isMobile && navigator.share) {
+        const blob = pdf.output('blob');
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: 'Atelier Stock Report', files: [file] });
+        } else {
+          window.open(URL.createObjectURL(blob), '_blank');
+        }
+      } else {
+        pdf.save(fileName);
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.error('PDF export failed:', err);
+        alert('PDF export failed. Please try again.');
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const totalWeightKg = allActive.reduce((s, b) => s + (b.current_weight_kg || 0), 0);
   const costValue     = allActive.reduce((s, b) =>
@@ -132,13 +230,23 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-stone-900">Dashboard</h2>
-        <p className="text-sm text-stone-500 mt-1">
-          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-stone-900">Dashboard</h2>
+          <p className="text-sm text-stone-500 mt-1">
+            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+        <button
+          onClick={handleExportPDF}
+          disabled={exporting}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          {exporting ? 'Generating…' : '↓ Export PDF'}
+        </button>
       </div>
 
+      <div ref={reportRef}>
       {ready.length > 0 && (
         <div className="card p-4 border-emerald-300 bg-emerald-50">
           <div className="flex items-center gap-2 mb-3">
@@ -274,6 +382,7 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }
