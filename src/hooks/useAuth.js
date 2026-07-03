@@ -9,7 +9,8 @@ const IDLE_TIMEOUT_MS = 60_000; // 1 minute
  * Security behaviour:
  * - persistSession: false → session never saved to localStorage
  * - Idle timeout: signs out after 1 minute of no user activity
- * - Background logout: signs out immediately when the app returns from background
+ *   (switching tabs or apps does NOT immediately sign out — the timer
+ *   simply keeps running and triggers if 1 minute passes without interaction)
  */
 export function useAuth() {
   const [session, setSession] = useState(undefined);
@@ -26,7 +27,7 @@ export function useAuth() {
       setLoading(false);
     });
 
-    // ── 1. Idle timeout (1 minute of no interaction) ──────────────────────────
+    // Idle timeout — reset on any user interaction
     let idleTimer = null;
 
     function resetIdleTimer() {
@@ -36,28 +37,12 @@ export function useAuth() {
 
     const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
     activityEvents.forEach(e => document.addEventListener(e, resetIdleTimer, { passive: true }));
-    resetIdleTimer(); // start the timer immediately on login
-
-    // ── 2. Background logout ──────────────────────────────────────────────────
-    // Signs out when the app comes BACK into focus after being hidden.
-    // (Signing out on 'hidden' is unreliable on iOS — the OS may suspend the
-    // process before the async call completes, so we do it on 'visible' instead.)
-    let wasHidden = false;
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'hidden') {
-        wasHidden = true;
-      } else if (document.visibilityState === 'visible' && wasHidden) {
-        wasHidden = false;
-        supabase.auth.signOut();
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    resetIdleTimer();
 
     return () => {
       subscription.unsubscribe();
       clearTimeout(idleTimer);
       activityEvents.forEach(e => document.removeEventListener(e, resetIdleTimer));
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
