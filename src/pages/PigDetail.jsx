@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchPig, updateBatch } from '../lib/supabase.js';
-import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked } from '../lib/calculations.js';
+import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked, batchLabel } from '../lib/calculations.js';
 import LabelPrint from '../components/LabelPrint.jsx';
 import ItemWeights from '../components/ItemWeights.jsx';
 
@@ -108,7 +108,7 @@ export default function PigDetail() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-stone-900">{product?.name}</p>
-                      <p className="font-mono text-xs text-stone-400 mt-0.5">{batch.batch_code}</p>
+                      <p className="font-mono text-xs text-stone-400 mt-0.5">{batchLabel(batch)}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <StatusBadge status={batch.status} isReady={status.isReady} />

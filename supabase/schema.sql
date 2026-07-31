@@ -58,7 +58,7 @@ CREATE TABLE batches (
   product_id      UUID NOT NULL REFERENCES products(id),
   product_code    VARCHAR(4) NOT NULL,
   sequence_num    INTEGER NOT NULL,
-  batch_code      TEXT NOT NULL,                       -- e.g. "BH 20260302-94.6-SAU-001" (3-digit sequence)
+  batch_code      TEXT NOT NULL,                       -- e.g. "BH 20260302-94.6-SAU-001" (3-digit, no letters)
 
   -- Physical input
   cut_weight_kg   NUMERIC(8,2) NOT NULL,               -- Raw cut weight entering process

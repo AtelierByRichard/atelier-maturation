@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { fetchBatches } from '../lib/supabase.js';
-import { formatDate, formatKg, daysBetween, today, addDays } from '../lib/calculations.js';
+import { formatDate, formatKg, daysBetween, today, addDays, batchLabel } from '../lib/calculations.js';
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement,
@@ -56,7 +56,7 @@ function TimelineCard({ batch, unit }) {
     <div className={`flex items-center justify-between px-4 py-3 border-b border-stone-100 last:border-0 ${isReady ? 'bg-emerald-50' : ''}`}>
       <div>
         <p className="text-sm font-semibold text-stone-900">{batch.products?.name}</p>
-        <p className="text-xs text-stone-400 font-mono">{batch.batch_code}</p>
+        <p className="text-xs text-stone-400 font-mono">{batchLabel(batch)}</p>
       </div>
       <div className="text-right">
         <p className={`text-sm font-semibold ${isReady ? 'text-emerald-600' : isPast7 ? 'text-amber-600' : 'text-stone-700'}`}>

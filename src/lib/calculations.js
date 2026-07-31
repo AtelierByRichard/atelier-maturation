@@ -17,8 +17,12 @@ export function pigCode(pig) {
 
 /**
  * Build a product batch code.
- * Sequence is a 3-digit zero-padded number.
+ * Plain 3-digit sequence — no letters, no prefixes.
  * e.g.  "BH 20260302-94.6-SAU-001"
+ *
+ * NOTE: Richard confirmed 2026-07-31 there is NO letter on the code.
+ * The batch and its first piece therefore share a code. That is
+ * accepted: in practice only the piece codes are used and printed.
  */
 export function batchCode(pig, productCode, sequenceNum) {
   const masterCode = pig.master_code || pigCode(pig);
@@ -28,11 +32,13 @@ export function batchCode(pig, productCode, sequenceNum) {
 
 /**
  * Build the code for one physical piece.
- * Same shape as a batch code — the 3-digit number identifies the piece.
+ * A bare 3-digit number always means a piece.
  * e.g.  "BH 20260302-94.6-SAU-001"
  */
 export function itemCode(pig, productCode, sequenceNum) {
-  return batchCode(pig, productCode, sequenceNum);
+  const masterCode = pig.master_code || pigCode(pig);
+  const seq = String(sequenceNum).padStart(3, '0');
+  return `${masterCode}-${productCode}-${seq}`;
 }
 
 // ── Piece number ranges ───────────────────────────────────
@@ -160,6 +166,26 @@ export function isPieceTracked(product) {
  */
 export function usesStandardWeight(product) {
   return !!product?.track_pieces && product?.target_weight_g != null;
+}
+
+/**
+ * What to show for a batch in a list.
+ *
+ * For piece-tracked products the trailing 3-digit number is dropped,
+ * because a 3-digit number means ONE piece — showing it on a batch of
+ * 9 would read as "piece 001" while claiming 9 pieces.
+ *
+ *   batch of 9 ficelles  →  "BH 20260622-55.45-FIC"
+ *   the pieces themselves →  "…-FIC-001" … "…-FIC-009"
+ *
+ * Untracked products keep their full code, since there is no ambiguity.
+ */
+export function batchLabel(batch) {
+  if (!batch?.batch_code) return '—';
+  if (batch.products?.track_pieces) {
+    return batch.batch_code.replace(/-\d{3}$/, '');
+  }
+  return batch.batch_code;
 }
 
 // ── Date helpers ──────────────────────────────────────────

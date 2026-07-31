@@ -9,6 +9,7 @@ import {
 } from '../lib/supabase.js';
 import {
   formatDate,
+  batchLabel,
   formatKg,
   formatIDR,
   stockValue,
@@ -50,7 +51,7 @@ function BatchRow({ batch }) {
     <tr className="border-b border-stone-100 last:border-0 hover:bg-stone-50 transition-colors">
       <td className="py-3 pr-3 pl-4">
         <p className="text-sm font-semibold text-stone-900">{product?.name}</p>
-        <p className="text-xs text-stone-400 font-mono">{batch.batch_code}</p>
+        <p className="text-xs text-stone-400 font-mono">{batchLabel(batch)}</p>
       </td>
       <td className="py-3 pr-3 hidden sm:table-cell">
         <p className="text-sm text-stone-700">{formatKg(batch.current_weight_kg)}</p>
@@ -297,7 +298,7 @@ export default function Dashboard() {
                   <tr key={b.id} className="border-b border-stone-100 last:border-0">
                     <td className="py-3 pr-3 pl-4">
                       <p className="text-sm font-semibold text-stone-900">{b.products?.name}</p>
-                      <p className="text-xs text-stone-400 font-mono">{b.batch_code}</p>
+                      <p className="text-xs text-stone-400 font-mono">{batchLabel(b)}</p>
                     </td>
                     <td className="py-3 pr-3 hidden sm:table-cell">
                       <p className="text-sm">{formatKg(b.current_weight_kg)}</p>

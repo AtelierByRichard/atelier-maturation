@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchBatches, recordMovement, recordAdjustment, setItemsStatus } from '../lib/supabase.js';
-import { formatDate, formatKg, applyMovement, today, toISO, isPieceTracked, usesStandardWeight } from '../lib/calculations.js';
+import { formatDate, formatKg, applyMovement, today, toISO, isPieceTracked, usesStandardWeight, batchLabel } from '../lib/calculations.js';
 import PieceSelect from '../components/PieceSelect.jsx';
 
 const TABS = [
@@ -114,7 +114,7 @@ function MovementForm({ type, batches, onSaved }) {
           <option value="">— Select a batch —</option>
           {availableBatches.map(b => (
             <option key={b.id} value={b.id}>
-              {b.products?.name} — {b.batch_code} — {formatKg(b.current_weight_kg)}
+              {b.products?.name} — {batchLabel(b)} — {formatKg(b.current_weight_kg)}
             </option>
           ))}
         </select>
@@ -303,7 +303,7 @@ function AdjustmentForm({ batches, onSaved }) {
           <option value="">— Select a batch —</option>
           {activeBatches.map(b => (
             <option key={b.id} value={b.id}>
-              {b.products?.name} — {b.batch_code}
+              {b.products?.name} — {batchLabel(b)}
             </option>
           ))}
         </select>
