@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum, deletePig, countBatchesForPig } from '../lib/supabase.js';
+import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum, deletePig, countBatchesForPig,
+         insertItems, lastItemSequence } from '../lib/supabase.js';
 import {
   pigCode, batchCode, calcTotalDays, calcReadyDate,
-  formatDate, toISO, today,
+  formatDate, toISO, today, isPieceTracked, sequenceRun, itemCode,
 } from '../lib/calculations.js';
 
 function PigForm({ onSaved, products }) {
@@ -134,7 +135,28 @@ function BatchForm({ pig, products, onBatchAdded }) {
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState(null);
 
+  // Next free tracking number for this pig + product
+  const [suggestStart, setSuggestStart] = useState(1);
+
   const selectedProduct = products.find(p => p.id === form.product_id);
+  // Piece-tracked products get a 3-digit number appended to the batch ID
+  // for each piece. Generated silently on save — nothing to fill in.
+  const pieceTracked = isPieceTracked(selectedProduct);
+
+  // When the product changes, look up which piece numbers this pig
+  // has already used so we can pre-fill the next start number.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedProduct?.track_pieces) {
+      setSuggestStart(1);
+      return;
+    }
+    (async () => {
+      const last = await lastItemSequence(pig.id, selectedProduct.code);
+      if (!cancelled) setSuggestStart(last + 1);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedProduct?.id, pig.id]);
 
   useEffect(() => {
     if (!selectedProduct) { setPreview(null); return; }
@@ -162,6 +184,8 @@ function BatchForm({ pig, products, onBatchAdded }) {
       const rd   = form.start_date ? toISO(calcReadyDate(form.start_date, days)) : null;
       const code = batchCode(pig, prod.code, seqNum);
 
+      const pieceCount = Number(form.pieces) || 0;
+
       const batch = {
         pig_id:            pig.id,
         product_id:        prod.id,
@@ -169,17 +193,36 @@ function BatchForm({ pig, products, onBatchAdded }) {
         sequence_num:      seqNum,
         batch_code:        code,
         cut_weight_kg:     wt,
-        pieces:            Number(form.pieces) || 0,
+        pieces:            pieceCount,
         dimension_cm:      dim || null,
         start_date:        form.start_date,
         ready_date:        rd,
         current_weight_kg: wt,
-        current_pieces:    Number(form.pieces) || 0,
+        current_pieces:    pieceCount,
         notes:             form.notes,
         status:            'maturing',
       };
 
       const saved = await insertBatch(batch);
+
+      // Give each piece its 3-digit tracking number. Nothing else about
+      // the batch procedure changes — the numbers simply run on from the
+      // highest one this pig has already used for this product.
+      if (prod.track_pieces && pieceCount > 0) {
+        const { numbers } = sequenceRun(suggestStart, pieceCount);
+        await insertItems(numbers.map(n => ({
+          batch_id:     saved.id,
+          pig_id:       pig.id,
+          product_id:   prod.id,
+          product_code: prod.code,
+          sequence_num: n,
+          item_code:    itemCode(pig, prod.code, n),
+          weight_g:     prod.target_weight_g ?? null,
+          status:       'maturing',
+          source:       'generated',
+        })));
+      }
+
       onBatchAdded(saved);
 
       setForm(prev => ({
@@ -256,6 +299,7 @@ function BatchForm({ pig, products, onBatchAdded }) {
           </div>
         </div>
       )}
+
 
       {preview && selectedProduct && (
         <div className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-sm">

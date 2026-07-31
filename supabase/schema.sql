@@ -58,7 +58,7 @@ CREATE TABLE batches (
   product_id      UUID NOT NULL REFERENCES products(id),
   product_code    VARCHAR(4) NOT NULL,
   sequence_num    INTEGER NOT NULL,
-  batch_code      TEXT NOT NULL,                       -- e.g. "BH 94.6-20260302-SAU-01"
+  batch_code      TEXT NOT NULL,                       -- e.g. "BH 20260302-94.6-SAU-001" (3-digit sequence)
 
   -- Physical input
   cut_weight_kg   NUMERIC(8,2) NOT NULL,               -- Raw cut weight entering process
@@ -151,7 +151,7 @@ INSERT INTO products (code, name, category, drying_days, has_incubation, has_smo
 
 -- Sausage range
 ('SAU',  'Saucisson',               'sausage', 45, TRUE,  FALSE, FALSE, FALSE, FALSE, FALSE, 250),
-('FIC',  'Ficelle',                 'sausage', 21, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 100),
+('FIC',  'Ficelle',                 'sausage', 21, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 120),
 ('BER',  'Bérichon/Herbe',          'sausage', 30, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 150),
 ('BBQ',  'Béret Basque',            'sausage', 30, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 150),
 ('PIT',  'Pitina',                  'sausage', 15, TRUE,  TRUE,  FALSE, FALSE, FALSE, FALSE, 60),
@@ -164,7 +164,7 @@ INSERT INTO products (code, name, category, drying_days, has_incubation, has_smo
 ('GUA',  'Guanciale',               'flat',    21, FALSE, FALSE, TRUE,  FALSE, FALSE, FALSE, NULL),
 ('VEN',  'Ventrèche',               'flat',    15, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, NULL),
 ('LAR',  'Lardo/Rosemary',          'flat',    30, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, NULL),
-('SPE',  'Tyrolean Speck',          'flat',    45, FALSE, TRUE,  FALSE, FALSE, FALSE, FALSE, NULL),
+('TYR',  'Tyrolean Speck',          'flat',    45, FALSE, TRUE,  FALSE, FALSE, FALSE, FALSE, NULL),
 ('BAC',  'Smoked Bacon',            'flat',    0,  FALSE, TRUE,  FALSE, FALSE, TRUE,  FALSE, NULL),
 
 -- Whole muscle — round (enter avg diameter in cm)
@@ -174,5 +174,4 @@ INSERT INTO products (code, name, category, drying_days, has_incubation, has_smo
 ('CUL',  'Culatello',               'round',   240,FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, NULL),
 
 -- Special cures
-('JBL',  'Jambon Blanc',            'wet',     0,  FALSE, FALSE, FALSE, FALSE, FALSE, TRUE,  NULL),
-('JAM',  'Jambon Sec',              'round',   300,FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, NULL);
+('HAM',  'Jambon Blanc',            'wet',     0,  FALSE, FALSE, FALSE, FALSE, FALSE, TRUE,  NULL);

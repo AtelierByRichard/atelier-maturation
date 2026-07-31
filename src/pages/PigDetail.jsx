@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchPig, updateBatch } from '../lib/supabase.js';
-import { formatDate, formatKg, calcBatchStatus, buildStages } from '../lib/calculations.js';
+import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked } from '../lib/calculations.js';
+import LabelPrint from '../components/LabelPrint.jsx';
+import ItemWeights from '../components/ItemWeights.jsx';
 
 function StatusBadge({ status, isReady }) {
   if (isReady || status === 'ready')  return <span className="badge-green">Ready</span>;
@@ -36,9 +38,10 @@ function StageTimeline({ stages, elapsed }) {
 
 export default function PigDetail() {
   const { id } = useParams();
-  const [pig,     setPig]     = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
+  const [pig,          setPig]         = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [printBatch,   setPrintBatch]   = useState(null);
 
   useEffect(() => {
     fetchPig(id)
@@ -65,6 +68,7 @@ export default function PigDetail() {
   if (!pig)  return null;
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center gap-2 text-sm text-stone-500">
         <Link to="/pigs" className="hover:text-stone-900">Receptions</Link>
@@ -113,6 +117,13 @@ export default function PigDetail() {
                           Mark ready
                         </button>
                       )}
+                      <button
+                        onClick={() => setPrintBatch(batch)}
+                        className="btn-secondary text-xs"
+                        title="Print label"
+                      >
+                        🖨 Label
+                      </button>
                     </div>
                   </div>
 
@@ -152,6 +163,17 @@ export default function PigDetail() {
                     </details>
                   )}
 
+                  {isPieceTracked(product) && (
+                    <details className="mt-3">
+                      <summary className="text-xs text-stone-400 cursor-pointer hover:text-stone-600 select-none">
+                        Tracking numbers ({batch.current_pieces ?? 0} in stock)
+                      </summary>
+                      <div className="mt-3">
+                        <ItemWeights batch={batch} product={product} />
+                      </div>
+                    </details>
+                  )}
+
                   {batch.notes && (
                     <p className="mt-2 text-xs text-stone-400 bg-stone-50 rounded px-2 py-1">{batch.notes}</p>
                   )}
@@ -162,5 +184,14 @@ export default function PigDetail() {
         )}
       </div>
     </div>
+
+    {printBatch && (
+      <LabelPrint
+        batch={printBatch}
+        product={printBatch.products}
+        onClose={() => setPrintBatch(null)}
+      />
+    )}
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { fetchBatches, recordMovement, recordAdjustment } from '../lib/supabase.js';
-import { formatDate, formatKg, applyMovement, today, toISO } from '../lib/calculations.js';
+import { fetchBatches, recordMovement, recordAdjustment, setItemsStatus } from '../lib/supabase.js';
+import { formatDate, formatKg, applyMovement, today, toISO, isPieceTracked, usesStandardWeight } from '../lib/calculations.js';
+import PieceSelect from '../components/PieceSelect.jsx';
 
 const TABS = [
   { key: 'sale',       label: 'Sale' },
@@ -24,8 +25,14 @@ function MovementForm({ type, batches, onSaved }) {
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState(null);
   const [success, setSuccess] = useState(false);
+  const [pieces,  setPieces]  = useState({ ids: [], numbers: [], kg: 0, valid: false });
 
   const selectedBatch = batches.find(b => b.id === form.batch_id);
+  // Which numbered pieces went out — recorded for every tracked product.
+  const byPiece = isPieceTracked(selectedBatch?.products);
+  // Sausages have a standard weight, so kg is derived from the pieces.
+  // Whole muscle keeps the typed kg, exactly as before.
+  const kgFromPieces = usesStandardWeight(selectedBatch?.products);
 
   function set(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -33,7 +40,12 @@ function MovementForm({ type, batches, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.quantity_kg && !form.quantity_pcs) {
+
+    if (byPiece && !pieces.valid) {
+      setError('Choose which piece numbers are going out.');
+      return;
+    }
+    if (!kgFromPieces && !form.quantity_kg && !form.quantity_pcs) {
       setError('Please enter a weight or number of pieces.');
       return;
     }
@@ -45,8 +57,12 @@ function MovementForm({ type, batches, onSaved }) {
         movement_type: type,
         movement_date: form.movement_date,
         notes:         form.notes || null,
-        quantity_kg:   form.quantity_kg  ? Number(form.quantity_kg)  : null,
-        quantity_pcs:  form.quantity_pcs ? Number(form.quantity_pcs) : null,
+        // For piece-tracked products both figures come from the
+        // pieces chosen, so they can never disagree with reality.
+        quantity_kg:   kgFromPieces ? pieces.kg
+                                    : (form.quantity_kg  ? Number(form.quantity_kg)  : null),
+        quantity_pcs:  byPiece ? pieces.numbers.length
+                               : (form.quantity_pcs ? Number(form.quantity_pcs) : null),
       };
 
       if (type === 'sale') {
@@ -63,7 +79,15 @@ function MovementForm({ type, batches, onSaved }) {
       };
 
       await recordMovement(movement, batchUpdates);
+
+      // Take the exact pieces out of stock. The database trigger then
+      // recalculates the batch's remaining count and weight.
+      if (byPiece && pieces.ids.length) {
+        await setItemsStatus(pieces.ids, 'out', form.movement_date);
+      }
+
       setSuccess(true);
+      setPieces({ ids: [], numbers: [], kg: 0, valid: false });
       setForm(prev => ({ ...prev, batch_id: '', quantity_kg: '', quantity_pcs: '', notes: '' }));
       setTimeout(() => setSuccess(false), 3000);
       onSaved?.();
@@ -145,26 +169,39 @@ function MovementForm({ type, batches, onSaved }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="label">Quantity (kg)</label>
-          <input
-            className="input" type="number" step="0.01" min="0"
-            value={form.quantity_kg}
-            onChange={e => set('quantity_kg', e.target.value)}
-            placeholder="e.g. 1.25"
-          />
+      {byPiece && (
+        <PieceSelect
+          key={selectedBatch.id}
+          batch={selectedBatch}
+          requireWeight={kgFromPieces}
+          onChange={setPieces}
+        />
+      )}
+
+      {!kgFromPieces && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Quantity (kg)</label>
+            <input
+              className="input" type="number" step="0.01" min="0"
+              value={form.quantity_kg}
+              onChange={e => set('quantity_kg', e.target.value)}
+              placeholder="e.g. 1.25"
+            />
+          </div>
+          {!byPiece && (
+            <div>
+              <label className="label">Quantity (pieces)</label>
+              <input
+                className="input" type="number" min="0"
+                value={form.quantity_pcs}
+                onChange={e => set('quantity_pcs', e.target.value)}
+                placeholder="e.g. 2"
+              />
+            </div>
+          )}
         </div>
-        <div>
-          <label className="label">Quantity (pieces)</label>
-          <input
-            className="input" type="number" min="0"
-            value={form.quantity_pcs}
-            onChange={e => set('quantity_pcs', e.target.value)}
-            placeholder="e.g. 2"
-          />
-        </div>
-      </div>
+      )}
 
       <div>
         <label className="label">Date</label>
@@ -183,7 +220,11 @@ function MovementForm({ type, batches, onSaved }) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button type="submit" disabled={saving || !form.batch_id} className="btn-primary w-full">
+      <button
+        type="submit"
+        disabled={saving || !form.batch_id || (byPiece && !pieces.valid)}
+        className="btn-primary w-full"
+      >
         {saving ? 'Saving…' : type === 'sale' ? 'Record sale' : 'Record internal use'}
       </button>
     </form>

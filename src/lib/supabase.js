@@ -218,6 +218,100 @@ export async function nextSequenceNum(pigId, productCode) {
   return data.length > 0 ? data[0].sequence_num + 1 : 1;
 }
 
+// ── ITEMS (per-piece tracking) ────────────────────────────
+
+/**
+ * All items for a batch, lowest sequence number first.
+ */
+export async function fetchItems(batchId) {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .eq('batch_id', batchId)
+    .order('sequence_num', { ascending: true });
+  handleError(error, 'fetchItems');
+  return data;
+}
+
+/**
+ * All sequence numbers already used for a pig + product.
+ * Used to reject duplicates before hitting the DB constraint.
+ */
+export async function usedSequenceNums(pigId, productCode) {
+  const { data, error } = await supabase
+    .from('items')
+    .select('sequence_num')
+    .eq('pig_id', pigId)
+    .eq('product_code', productCode);
+  handleError(error, 'usedSequenceNums');
+  return new Set((data || []).map(r => r.sequence_num));
+}
+
+/**
+ * Highest sequence number so far for a pig + product (0 if none).
+ * Lets the "new batch" form pre-fill the next start number.
+ */
+export async function lastItemSequence(pigId, productCode) {
+  const { data, error } = await supabase
+    .from('items')
+    .select('sequence_num')
+    .eq('pig_id', pigId)
+    .eq('product_code', productCode)
+    .order('sequence_num', { ascending: false })
+    .limit(1);
+  handleError(error, 'lastItemSequence');
+  return data.length > 0 ? data[0].sequence_num : 0;
+}
+
+/**
+ * Insert many items at once.
+ * Supabase handles a few hundred rows per call comfortably, which
+ * covers a full pig's worth of saucisson.
+ */
+export async function insertItems(items) {
+  if (!items.length) return [];
+  const { data, error } = await supabase
+    .from('items')
+    .insert(items)
+    .select();
+  handleError(error, 'insertItems');
+  return data;
+}
+
+export async function updateItem(id, updates) {
+  const { data, error } = await supabase
+    .from('items')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  handleError(error, 'updateItem');
+  return data;
+}
+
+export async function deleteItem(id) {
+  const { error } = await supabase.from('items').delete().eq('id', id);
+  handleError(error, 'deleteItem');
+}
+
+/**
+ * Move a set of pieces out of stock (or mark them lost) in one go.
+ * Status is stock state only — 'out', 'lost', 'ready', 'maturing'.
+ * The reason a piece went out lives on the stock movement record.
+ */
+export async function setItemsStatus(ids, status, outDate = null) {
+  if (!ids.length) return [];
+  const updates = { status };
+  if (outDate) updates.out_date = outDate;
+  const { data, error } = await supabase
+    .from('items')
+    .update(updates)
+    .in('id', ids)
+    .select();
+  handleError(error, 'setItemsStatus');
+  return data;
+}
+
 // ── STOCK MOVEMENTS ───────────────────────────────────────
 
 /**

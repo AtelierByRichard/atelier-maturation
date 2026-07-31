@@ -6,7 +6,7 @@
 
 /**
  * Build the master pig code.
- * e.g.  "BH 94.6-20260302"
+ * Format: PREFIX YYYYMMDD-WEIGHT   e.g.  "BH 20260302-94.6"
  */
 export function pigCode(pig) {
   const prefix = pig.prefix || 'BH';
@@ -17,12 +17,149 @@ export function pigCode(pig) {
 
 /**
  * Build a product batch code.
- * e.g.  "BH 94.6-20260302-SAU-01"
+ * Sequence is a 3-digit zero-padded number.
+ * e.g.  "BH 20260302-94.6-SAU-001"
  */
 export function batchCode(pig, productCode, sequenceNum) {
   const masterCode = pig.master_code || pigCode(pig);
-  const seq = String(sequenceNum).padStart(2, '0');
+  const seq = String(sequenceNum).padStart(3, '0');
   return `${masterCode}-${productCode}-${seq}`;
+}
+
+/**
+ * Build the code for one physical piece.
+ * Same shape as a batch code — the 3-digit number identifies the piece.
+ * e.g.  "BH 20260302-94.6-SAU-001"
+ */
+export function itemCode(pig, productCode, sequenceNum) {
+  return batchCode(pig, productCode, sequenceNum);
+}
+
+// ── Piece number ranges ───────────────────────────────────
+
+export const MAX_SEQUENCE = 999;
+
+/**
+ * Parse a piece-number range string into a sorted array of numbers.
+ *
+ * Accepts what you would naturally type on a count sheet:
+ *   "1-120"                → [1 … 120]
+ *   "001-045, 067-120"     → two runs, the gap skipped
+ *   "7"                    → [7]
+ *   "1-10, 15, 22-24"      → mixed
+ * Separators may be commas, semicolons, spaces or newlines.
+ * Hyphen, en-dash and "to" all work as range separators.
+ *
+ * @returns {{ numbers: number[], errors: string[] }}
+ */
+export function parseSequenceRanges(input) {
+  const errors = [];
+  const seen = new Set();
+
+  if (!input || !String(input).trim()) {
+    return { numbers: [], errors: ['Enter at least one piece number.'] };
+  }
+
+  const parts = String(input)
+    .split(/[,;\n]+|\s{2,}/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  for (const part of parts) {
+    const range = part.match(/^(\d+)\s*(?:-|–|—|to)\s*(\d+)$/i);
+    const single = part.match(/^(\d+)$/);
+
+    if (range) {
+      const from = parseInt(range[1], 10);
+      const to   = parseInt(range[2], 10);
+      if (from < 1 || to > MAX_SEQUENCE) {
+        errors.push(`"${part}" is outside 001–${MAX_SEQUENCE}.`);
+        continue;
+      }
+      if (from > to) {
+        errors.push(`"${part}" runs backwards — start is higher than end.`);
+        continue;
+      }
+      for (let n = from; n <= to; n++) seen.add(n);
+    } else if (single) {
+      const n = parseInt(single[1], 10);
+      if (n < 1 || n > MAX_SEQUENCE) {
+        errors.push(`"${part}" is outside 001–${MAX_SEQUENCE}.`);
+        continue;
+      }
+      seen.add(n);
+    } else {
+      errors.push(`"${part}" is not a number or a range.`);
+    }
+  }
+
+  return {
+    numbers: [...seen].sort((a, b) => a - b),
+    errors,
+  };
+}
+
+/**
+ * Build a contiguous run of piece numbers from a start and a quantity.
+ * Used by the new-batch form, which generates automatically.
+ */
+export function sequenceRun(start, quantity) {
+  const s = Number(start), q = Number(quantity);
+  const errors = [];
+  if (!Number.isInteger(s) || s < 1)  errors.push('Start number must be 1 or more.');
+  if (!Number.isInteger(q) || q < 1)  errors.push('Quantity must be at least 1.');
+  if (errors.length) return { numbers: [], errors };
+  if (s + q - 1 > MAX_SEQUENCE) {
+    errors.push(`${s} + ${q} pieces runs past ${MAX_SEQUENCE}. Split into two batches.`);
+    return { numbers: [], errors };
+  }
+  return { numbers: Array.from({ length: q }, (_, i) => s + i), errors: [] };
+}
+
+/**
+ * Collapse a list of numbers back into readable ranges: "001–045, 067, 070–072".
+ */
+export function formatSequenceRanges(numbers) {
+  const sorted = [...new Set(numbers)].sort((a, b) => a - b);
+  if (!sorted.length) return '—';
+  const pad = n => String(n).padStart(3, '0');
+  const out = [];
+  let start = sorted[0], prev = sorted[0];
+
+  for (let i = 1; i <= sorted.length; i++) {
+    const n = sorted[i];
+    if (n !== prev + 1) {
+      out.push(start === prev ? pad(start) : `${pad(start)}–${pad(prev)}`);
+      start = n;
+    }
+    prev = n;
+  }
+  return out.join(', ');
+}
+
+/**
+ * Split a proposed set of piece numbers against those already used.
+ * @returns {{ fresh: number[], clashes: number[] }}
+ */
+export function splitAgainstUsed(numbers, usedSet) {
+  const fresh = [], clashes = [];
+  for (const n of numbers) (usedSet.has(n) ? clashes : fresh).push(n);
+  return { fresh, clashes };
+}
+
+/**
+ * Does this product get individually numbered pieces?
+ */
+export function isPieceTracked(product) {
+  return !!product?.track_pieces;
+}
+
+/**
+ * Standard weight products (sausages) auto-fill the weight.
+ * Whole muscle has no target weight, so each piece is weighed.
+ */
+export function usesStandardWeight(product) {
+  return !!product?.track_pieces && product?.target_weight_g != null;
 }
 
 // ── Date helpers ──────────────────────────────────────────
