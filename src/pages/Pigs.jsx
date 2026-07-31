@@ -69,10 +69,10 @@ function PigForm({ onSaved, products }) {
         <div>
           <label className="label">Gross weight (kg)</label>
           <input
-            className="input" type="number" step="0.1" min="1" max="500"
+            className="input" type="number" step="0.01" min="1" max="500"
             value={form.gross_weight_kg}
             onChange={e => set('gross_weight_kg', e.target.value)}
-            placeholder="e.g. 94.6"
+            placeholder="e.g. 94.65"
             required
           />
         </div>

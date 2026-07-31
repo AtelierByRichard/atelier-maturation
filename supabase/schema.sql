@@ -37,7 +37,7 @@ CREATE TABLE pigs (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   prefix          VARCHAR(5) NOT NULL DEFAULT 'BH',   -- Breed abbreviation
   breed_name      TEXT NOT NULL DEFAULT 'Bangkal Hitam',
-  gross_weight_kg NUMERIC(6,1) NOT NULL,
+  gross_weight_kg NUMERIC(7,2) NOT NULL,             -- 2 decimals, e.g. 55.45
   receiving_date  DATE NOT NULL,
   supplier        TEXT,
   pieces          INTEGER NOT NULL DEFAULT 1,
@@ -151,12 +151,12 @@ INSERT INTO products (code, name, category, drying_days, has_incubation, has_smo
 
 -- Sausage range
 ('SAU',  'Saucisson',               'sausage', 45, TRUE,  FALSE, FALSE, FALSE, FALSE, FALSE, 250),
-('FIC',  'Ficelle',                 'sausage', 21, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 120),
-('BER',  'Bérichon/Herbe',          'sausage', 30, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 150),
-('BBQ',  'Béret Basque',            'sausage', 30, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 150),
+('FIC',  'Ficelle',                 'sausage', 21, TRUE , FALSE, FALSE, FALSE, FALSE, FALSE, 120),
+('BER',  'Bérichon/Herbe',          'sausage', 30, TRUE , FALSE, FALSE, FALSE, FALSE, FALSE, 150),
+('BBQ',  'Béret Basque',            'sausage', 30, TRUE , FALSE, FALSE, FALSE, FALSE, FALSE, 150),
 ('PIT',  'Pitina',                  'sausage', 15, TRUE,  TRUE,  FALSE, FALSE, FALSE, FALSE, 60),
-('CHC',  'Chorizo courbe',          'sausage', 30, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 150),
-('CHP',  'Chorizo Pamplona',        'sausage', 45, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, 250),
+('CHC',  'Chorizo courbe',          'sausage', 30, TRUE , FALSE, FALSE, FALSE, FALSE, FALSE, 150),
+('CHP',  'Chorizo Pamplona',        'sausage', 45, TRUE , FALSE, FALSE, FALSE, FALSE, FALSE, 250),
 ('NDU',  'Nduja Salami',            'sausage', 0,  FALSE, FALSE, FALSE, TRUE,  FALSE, FALSE, NULL),
 ('FIN',  'Finocchiona toscane',     'sausage', 45, TRUE,  FALSE, FALSE, FALSE, FALSE, FALSE, 250),
 

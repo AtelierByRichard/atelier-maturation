@@ -6,11 +6,11 @@
 
 /**
  * Build the master pig code.
- * Format: PREFIX YYYYMMDD-WEIGHT   e.g.  "BH 20260302-94.6"
+ * Weight carries 2 decimals, e.g. "BH 20260622-55.45".
  */
 export function pigCode(pig) {
   const prefix = pig.prefix || 'BH';
-  const weight = Number(pig.gross_weight_kg).toFixed(1);
+  const weight = Number(pig.gross_weight_kg).toFixed(2);
   const date = pig.receiving_date.replace(/-/g, '');   // "2026-03-02" → "20260302"
   return `${prefix} ${date}-${weight}`;
 }
