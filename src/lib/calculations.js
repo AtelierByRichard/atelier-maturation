@@ -298,10 +298,12 @@ export function calcCureDays(product, dimension_cm) {
     // thickness in cm, formula applies directly
     return Math.ceil(dim * 3.72);
   }
-  if (product.category === 'round' || product.category === 'sausage') {
+  if (product.category === 'round') {
     // radius = diameter / 2
     return Math.ceil((dim / 2) * 3.72);
   }
+  // Sausages are a direct mix — no cure at all, per the A-to-Z process.
+  // Their timeline is mêlée rest → pushing → incubation → drying.
   return 0;
 }
 

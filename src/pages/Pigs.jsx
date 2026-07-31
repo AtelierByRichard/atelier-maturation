@@ -259,7 +259,10 @@ function BatchForm({ pig, products, onBatchAdded }) {
     }
   }
 
+  // Sausages have no cure, so no dimension is needed — and offering the
+  // box would silently add cure days to a product that has none.
   const needsDimension = selectedProduct &&
+    selectedProduct.category !== 'sausage' &&
     !selectedProduct.is_nduja && !selectedProduct.is_bacon && !selectedProduct.is_wet;
 
   const dimensionLabel = selectedProduct?.category === 'flat'
@@ -337,8 +340,8 @@ function BatchForm({ pig, products, onBatchAdded }) {
         </div>
       )}
 
-      {needsDimension && (
-        <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
+        {needsDimension && (
           <div>
             <label className="label">{dimensionLabel}</label>
             <input
@@ -348,17 +351,17 @@ function BatchForm({ pig, products, onBatchAdded }) {
               placeholder={selectedProduct?.category === 'flat' ? 'e.g. 4.5' : 'e.g. 12.0'}
             />
           </div>
-          <div>
-            <label className="label">Start date</label>
-            <input
-              className="input" type="date"
-              value={form.start_date}
-              onChange={e => set('start_date', e.target.value)}
-              required
-            />
-          </div>
+        )}
+        <div>
+          <label className="label">Start date</label>
+          <input
+            className="input" type="date"
+            value={form.start_date}
+            onChange={e => set('start_date', e.target.value)}
+            required
+          />
         </div>
-      )}
+      </div>
 
 
       {preview && selectedProduct && (
