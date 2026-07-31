@@ -188,6 +188,43 @@ export function batchLabel(batch) {
   return batch.batch_code;
 }
 
+/**
+ * Fresh vs ready weight for a batch.
+ *
+ * A ficelle is cut at ~240 g and dries down to ~120 g. Both numbers
+ * matter: the fresh weight is what is physically hanging today, the
+ * ready weight is what can be sold.
+ *
+ *   cut_weight_kg     total fresh weight at cutting (pieces × per piece)
+ *   current_weight_kg total ready weight of the pieces still in stock
+ *
+ * @returns {{ fresh: number, ready: number, showBoth: boolean }}
+ */
+/**
+ * One-line stock text: "2.16 kg now → 1.08 kg ready", or just the
+ * ready weight when there is nothing extra to say.
+ */
+export function stockText(batch) {
+  const { fresh, ready, showBoth } = stockWeights(batch);
+  if (!showBoth) return formatKg(ready);
+  return `${fresh.toFixed(2)} kg now → ${ready.toFixed(2)} kg ready`;
+}
+
+export function stockWeights(batch) {
+  const fresh = Number(batch?.cut_weight_kg) || 0;
+  const ready = Number(batch?.current_weight_kg) || 0;
+  const prod  = batch?.products;
+  // Only sausages have a known finished weight per piece. Whole muscle
+  // has none, so there is no second figure to show — its stock weight
+  // is simply what is recorded.
+  const hasKnownReady = !!prod?.track_pieces && prod?.target_weight_g != null;
+  return {
+    fresh,
+    ready,
+    showBoth: hasKnownReady && fresh > 0 && ready > 0 && Math.abs(fresh - ready) > 0.005,
+  };
+}
+
 // ── Date helpers ──────────────────────────────────────────
 
 /**

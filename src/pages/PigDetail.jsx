@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchPig, updateBatch } from '../lib/supabase.js';
-import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked, batchLabel } from '../lib/calculations.js';
+import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked, batchLabel, stockText } from '../lib/calculations.js';
 import LabelPrint from '../components/LabelPrint.jsx';
 import ItemWeights from '../components/ItemWeights.jsx';
 
@@ -129,7 +129,7 @@ export default function PigDetail() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
                     <div><p className="text-xs text-stone-400">Cut weight</p><p className="font-medium">{formatKg(batch.cut_weight_kg)}</p></div>
-                    <div><p className="text-xs text-stone-400">Current stock</p><p className="font-medium">{formatKg(batch.current_weight_kg)}</p></div>
+                    <div><p className="text-xs text-stone-400">Current stock</p><p className="font-medium">{stockText(batch)}</p></div>
                     <div><p className="text-xs text-stone-400">Started</p><p className="font-medium">{formatDate(batch.start_date)}</p></div>
                     <div>
                       <p className="text-xs text-stone-400">Ready on</p>

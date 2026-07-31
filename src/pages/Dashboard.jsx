@@ -10,6 +10,7 @@ import {
 import {
   formatDate,
   batchLabel,
+  stockText,
   formatKg,
   formatIDR,
   stockValue,
@@ -54,7 +55,7 @@ function BatchRow({ batch }) {
         <p className="text-xs text-stone-400 font-mono">{batchLabel(batch)}</p>
       </td>
       <td className="py-3 pr-3 hidden sm:table-cell">
-        <p className="text-sm text-stone-700">{formatKg(batch.current_weight_kg)}</p>
+        <p className="text-sm text-stone-700">{stockText(batch)}</p>
         {batch.current_pieces != null && (
           <p className="text-xs text-stone-400">{batch.current_pieces} pcs</p>
         )}
@@ -301,7 +302,7 @@ export default function Dashboard() {
                       <p className="text-xs text-stone-400 font-mono">{batchLabel(b)}</p>
                     </td>
                     <td className="py-3 pr-3 hidden sm:table-cell">
-                      <p className="text-sm">{formatKg(b.current_weight_kg)}</p>
+                      <p className="text-sm">{stockText(b)}</p>
                     </td>
                     <td className="py-3 pr-3 hidden md:table-cell">
                       <p className="text-sm">{formatDate(b.ready_date)}</p>

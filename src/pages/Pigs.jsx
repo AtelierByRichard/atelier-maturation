@@ -188,7 +188,13 @@ function BatchForm({ pig, products, onBatchAdded }) {
       const prod = selectedProduct;
       const seqNum = await nextSequenceNum(pig.id, prod.code);
       const dim  = Number(form.dimension_cm) || 0;
-      const wt   = Number(form.cut_weight_kg);
+      const perPiece = Number(form.cut_weight_kg);
+      const pieceCountEarly = Number(form.pieces) || 0;
+      // For piece-tracked products the box holds the weight of ONE piece
+      // at cutting, so the batch total is pieces × that.
+      const wt = prod.track_pieces && pieceCountEarly > 0
+        ? Number((perPiece * pieceCountEarly).toFixed(2))
+        : perPiece;
       const days = calcTotalDays(prod, dim, wt);
       const rd   = form.start_date ? toISO(calcReadyDate(form.start_date, days)) : null;
       const code = batchCode(pig, prod.code, seqNum);
@@ -274,14 +280,25 @@ function BatchForm({ pig, products, onBatchAdded }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Cut weight (kg)</label>
+          <label className="label">
+            {pieceTracked ? 'Cut weight per piece (kg)' : 'Cut weight (kg)'}
+          </label>
           <input
-            className="input" type="number" step="0.01" min="0.1"
+            className="input" type="number" step="0.001" min="0.001"
             value={form.cut_weight_kg}
             onChange={e => set('cut_weight_kg', e.target.value)}
-            placeholder="e.g. 12.5"
+            placeholder={pieceTracked ? 'e.g. 0.240' : 'e.g. 12.5'}
             required
           />
+          {pieceTracked && Number(form.cut_weight_kg) > 0 && Number(form.pieces) > 0 && (
+            <p className="mt-1 text-xs text-stone-500">
+              {Number(form.pieces)} × {Number(form.cut_weight_kg)} kg ={' '}
+              <strong>{(Number(form.cut_weight_kg) * Number(form.pieces)).toFixed(2)} kg</strong> fresh
+              {selectedProduct?.target_weight_g && (
+                <> → {((selectedProduct.target_weight_g * Number(form.pieces)) / 1000).toFixed(2)} kg ready</>
+              )}
+            </p>
+          )}
         </div>
         <div>
           <label className="label">Number of pieces</label>
