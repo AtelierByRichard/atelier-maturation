@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum, deletePig, countBatchesForPig,
-         insertItems, lastItemSequence } from '../lib/supabase.js';
+         insertItems, lastItemSequence, usedSequenceNums } from '../lib/supabase.js';
 import {
   pigCode, batchCode, calcTotalDays, calcReadyDate,
   formatDate, toISO, today, isPieceTracked, sequenceRun, itemCode,
+  formatSequenceRanges,
 } from '../lib/calculations.js';
 
 function PigForm({ onSaved, products }) {
@@ -135,8 +136,10 @@ function BatchForm({ pig, products, onBatchAdded }) {
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState(null);
 
-  // Next free tracking number for this pig + product
+  // Tracking numbers: next free number, plus any manual override
   const [suggestStart, setSuggestStart] = useState(1);
+  const [startNum,     setStartNum]     = useState(1);
+  const [usedNums,     setUsedNums]     = useState(new Set());
 
   const selectedProduct = products.find(p => p.id === form.product_id);
   // Piece-tracked products get a 3-digit number appended to the batch ID
@@ -148,12 +151,18 @@ function BatchForm({ pig, products, onBatchAdded }) {
   useEffect(() => {
     let cancelled = false;
     if (!selectedProduct?.track_pieces) {
-      setSuggestStart(1);
+      setSuggestStart(1); setStartNum(1); setUsedNums(new Set());
       return;
     }
     (async () => {
-      const last = await lastItemSequence(pig.id, selectedProduct.code);
-      if (!cancelled) setSuggestStart(last + 1);
+      const [last, used] = await Promise.all([
+        lastItemSequence(pig.id, selectedProduct.code),
+        usedSequenceNums(pig.id, selectedProduct.code),
+      ]);
+      if (cancelled) return;
+      setSuggestStart(last + 1);
+      setStartNum(last + 1);
+      setUsedNums(used);
     })();
     return () => { cancelled = true; };
   }, [selectedProduct?.id, pig.id]);
@@ -209,7 +218,15 @@ function BatchForm({ pig, products, onBatchAdded }) {
       // the batch procedure changes — the numbers simply run on from the
       // highest one this pig has already used for this product.
       if (prod.track_pieces && pieceCount > 0) {
-        const { numbers } = sequenceRun(suggestStart, pieceCount);
+        const { numbers, errors } = sequenceRun(startNum, pieceCount);
+        if (errors.length) throw new Error(errors[0]);
+        const clash = numbers.filter(n => usedNums.has(n));
+        if (clash.length) {
+          throw new Error(
+            `Piece numbers ${formatSequenceRanges(clash)} already exist for this pig. ` +
+            `Change the start number.`
+          );
+        }
         await insertItems(numbers.map(n => ({
           batch_id:     saved.id,
           pig_id:       pig.id,
@@ -276,6 +293,32 @@ function BatchForm({ pig, products, onBatchAdded }) {
           />
         </div>
       </div>
+
+      {pieceTracked && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Start numbering at</label>
+            <input
+              className="input font-mono" type="number" min="1" max="999"
+              value={startNum}
+              onChange={e => setStartNum(e.target.value === '' ? '' : Number(e.target.value))}
+            />
+          </div>
+          <div className="flex items-end">
+            <p className="text-xs text-stone-500 pb-2.5">
+              {startNum !== suggestStart && (
+                <button
+                  type="button"
+                  onClick={() => setStartNum(suggestStart)}
+                  className="underline hover:text-stone-700"
+                >
+                  reset to {String(suggestStart).padStart(3, '0')}
+                </button>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {needsDimension && (
         <div className="grid grid-cols-2 gap-4">

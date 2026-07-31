@@ -169,7 +169,7 @@ export default function PigDetail() {
                         Tracking numbers ({batch.current_pieces ?? 0} in stock)
                       </summary>
                       <div className="mt-3">
-                        <ItemWeights batch={batch} product={product} />
+                        <ItemWeights batch={batch} product={product} pig={pig} />
                       </div>
                     </details>
                   )}
