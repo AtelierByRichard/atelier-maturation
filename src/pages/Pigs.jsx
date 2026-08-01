@@ -154,6 +154,15 @@ function BatchForm({ pig, products, onBatchAdded }) {
       setSuggestStart(1); setStartNum(1); setUsedNums(new Set());
       return;
     }
+    // Pre-fill the fresh cut weight from the product, so it only has to
+    // be typed when a batch is genuinely off-spec.
+    if (selectedProduct.fresh_weight_g) {
+      setForm(prev => ({
+        ...prev,
+        cut_weight_kg: (selectedProduct.fresh_weight_g / 1000).toFixed(3),
+      }));
+    }
+
     (async () => {
       const [last, used] = await Promise.all([
         lastItemSequence(pig.id, selectedProduct.code),

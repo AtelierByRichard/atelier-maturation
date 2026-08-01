@@ -22,7 +22,8 @@ CREATE TABLE products (
   is_nduja      BOOLEAN NOT NULL DEFAULT FALSE,      -- Goes to bulk stock, no maturation
   is_bacon      BOOLEAN NOT NULL DEFAULT FALSE,      -- Slow cook + smoke, no drying
   is_wet        BOOLEAN NOT NULL DEFAULT FALSE,      -- Wet cure (Jambon Blanc)
-  target_weight_g INTEGER,                           -- Per-piece target weight (g), NULL = sold by kg
+  target_weight_g INTEGER,                           -- Ready-for-sale weight per piece (g), NULL = sold by kg
+  fresh_weight_g  INTEGER,                           -- Weight per piece at stuffing, before drying
   cost_price_idr  NUMERIC(12,0),                    -- Cost price per kg (IDR)
   sales_price_idr NUMERIC(12,0),                    -- Sales price per kg (IDR)
   active        BOOLEAN NOT NULL DEFAULT TRUE,
