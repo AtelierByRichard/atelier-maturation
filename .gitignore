@@ -4,3 +4,6 @@ dist/
 .env
 *.local
 .DS_Store
+
+# Vite writes these on every build
+vite.config.js.timestamp-*.mjs
