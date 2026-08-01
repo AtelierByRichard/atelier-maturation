@@ -237,7 +237,7 @@ function BatchForm({ pig, products, onBatchAdded }) {
       // For piece-tracked products the box holds the weight of ONE piece
       // at cutting, so the batch total is pieces × that.
       const wt = prod.track_pieces && pieceCountEarly > 0
-        ? Number((perPiece * pieceCountEarly).toFixed(2))
+        ? Number((perPiece * pieceCountEarly).toFixed(3))
         : perPiece;
       const days = calcTotalDays(prod, dim, wt);
       const rd   = form.start_date ? toISO(calcReadyDate(form.start_date, days)) : null;
@@ -340,9 +340,9 @@ function BatchForm({ pig, products, onBatchAdded }) {
           {pieceTracked && Number(form.cut_weight_kg) > 0 && Number(form.pieces) > 0 && (
             <p className="mt-1 text-xs text-stone-500">
               {Number(form.pieces)} × {Number(form.cut_weight_kg)} kg ={' '}
-              <strong>{(Number(form.cut_weight_kg) * Number(form.pieces)).toFixed(2)} kg</strong> fresh
+              <strong>{(Number(form.cut_weight_kg) * Number(form.pieces)).toFixed(3)} kg</strong> fresh
               {selectedProduct?.target_weight_g && (
-                <> → {((selectedProduct.target_weight_g * Number(form.pieces)) / 1000).toFixed(2)} kg ready</>
+                <> → {((selectedProduct.target_weight_g * Number(form.pieces)) / 1000).toFixed(3)} kg ready</>
               )}
             </p>
           )}

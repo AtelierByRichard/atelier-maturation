@@ -215,7 +215,7 @@ export function batchLabel(batch) {
 export function stockText(batch) {
   const { fresh, ready, showBoth } = stockWeights(batch);
   if (!showBoth) return formatKg(ready);
-  return `${fresh.toFixed(2)} kg now → ${ready.toFixed(2)} kg ready`;
+  return `${fresh.toFixed(3)} kg now → ${ready.toFixed(3)} kg ready`;
 }
 
 export function stockWeights(batch) {
@@ -519,5 +519,5 @@ export function formatIDR(amount) {
  */
 export function formatKg(kg) {
   if (kg == null) return '—';
-  return `${Number(kg).toFixed(2)} kg`;
+  return `${Number(kg).toFixed(3)} kg`;
 }
