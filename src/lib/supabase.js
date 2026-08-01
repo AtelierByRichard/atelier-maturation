@@ -218,6 +218,23 @@ export async function nextSequenceNum(pigId, productCode) {
   return data.length > 0 ? data[0].sequence_num + 1 : 1;
 }
 
+/**
+ * Next counter for an opening-stock reception on a given date.
+ * "BH 20260601 001", then 002, 003 …
+ */
+export async function nextOpeningSequence(receivingDate) {
+  const { data, error } = await supabase
+    .from('pigs')
+    .select('master_code')
+    .eq('is_opening_stock', true)
+    .eq('receiving_date', receivingDate);
+  handleError(error, 'nextOpeningSequence');
+  const used = (data || [])
+    .map(r => Number(String(r.master_code).trim().split(/\s+/).pop()))
+    .filter(n => Number.isFinite(n));
+  return used.length ? Math.max(...used) + 1 : 1;
+}
+
 // ── ITEMS (per-piece tracking) ────────────────────────────
 
 /**

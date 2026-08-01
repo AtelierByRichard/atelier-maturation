@@ -80,7 +80,7 @@ export default function PigDetail() {
         <h2 className="font-mono text-xl font-bold text-stone-900 mb-1">{pig.master_code}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
           <div><p className="text-xs text-stone-400">Breed</p><p className="font-medium">{pig.breed_name}</p></div>
-          <div><p className="text-xs text-stone-400">Gross weight</p><p className="font-medium">{pig.gross_weight_kg} kg</p></div>
+          <div><p className="text-xs text-stone-400">Gross weight</p><p className="font-medium">{pig.gross_weight_kg ? `${pig.gross_weight_kg} kg` : "— opening stock"}</p></div>
           <div><p className="text-xs text-stone-400">Reception date</p><p className="font-medium">{formatDate(pig.receiving_date)}</p></div>
           <div><p className="text-xs text-stone-400">Supplier</p><p className="font-medium">{pig.supplier || '—'}</p></div>
         </div>

@@ -10,8 +10,16 @@
  */
 export function pigCode(pig) {
   const prefix = pig.prefix || 'BH';
-  const weight = Number(pig.gross_weight_kg).toFixed(2);
   const date = pig.receiving_date.replace(/-/g, '');   // "2026-03-02" → "20260302"
+
+  // Opening stock: no identifiable pig, so a plain counter replaces the
+  // weight — "BH 20260601 001". Space-separated, to look nothing like a
+  // normal reception code.
+  if (pig.is_opening_stock) {
+    return `${prefix} ${date} ${String(pig.opening_seq || 1).padStart(3, '0')}`;
+  }
+
+  const weight = Number(pig.gross_weight_kg).toFixed(2);
   return `${prefix} ${date}-${weight}`;
 }
 

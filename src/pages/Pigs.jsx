@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum, deletePig, countBatchesForPig,
+import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum, deletePig, countBatchesForPig, nextOpeningSequence,
          insertItems, lastItemSequence, usedSequenceNums } from '../lib/supabase.js';
 import {
   pigCode, batchCode, calcTotalDays, calcReadyDate,
@@ -19,15 +19,30 @@ function PigForm({ onSaved, products }) {
     supplier:        'Heritage Pig Farm',
     pieces:          1,
     notes:           '',
+    is_opening_stock: false,
   });
 
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState(null);
+  const [openingSeq, setOpeningSeq] = useState(1);
 
-  const previewCode =
-    form.gross_weight_kg && form.receiving_date
-      ? pigCode({ ...form, gross_weight_kg: Number(form.gross_weight_kg) })
-      : '—';
+  // Opening stock is numbered 001, 002 … per date, so look up the next free one.
+  useEffect(() => {
+    let cancelled = false;
+    if (!form.is_opening_stock || !form.receiving_date) return;
+    nextOpeningSequence(form.receiving_date)
+      .then(n => { if (!cancelled) setOpeningSeq(n); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [form.is_opening_stock, form.receiving_date]);
+
+  const previewCode = form.is_opening_stock
+    ? (form.receiving_date
+        ? pigCode({ ...form, opening_seq: openingSeq })
+        : '—')
+    : (form.gross_weight_kg && form.receiving_date
+        ? pigCode({ ...form, gross_weight_kg: Number(form.gross_weight_kg) })
+        : '—');
 
   function set(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -40,9 +55,11 @@ function PigForm({ onSaved, products }) {
     try {
       const pig = {
         ...form,
-        gross_weight_kg: Number(form.gross_weight_kg),
-        pieces:          Number(form.pieces),
-        master_code:     previewCode,
+        gross_weight_kg: form.is_opening_stock
+          ? null
+          : Number(form.gross_weight_kg),
+        pieces:      Number(form.pieces),
+        master_code: previewCode,
       };
       const saved = await insertPig(pig);
       onSaved(saved);
@@ -66,17 +83,35 @@ function PigForm({ onSaved, products }) {
         </div>
       </div>
 
+      <label className="flex items-start gap-2.5 rounded-lg border border-stone-200 bg-stone-50 p-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.is_opening_stock}
+          onChange={e => set('is_opening_stock', e.target.checked)}
+          className="mt-0.5 accent-brand-600"
+        />
+        <span className="text-sm">
+          <span className="font-medium text-stone-800">Opening stock — no identifiable pig</span>
+          <span className="block text-xs text-stone-500 mt-0.5">
+            For stock already in the chamber where the tag is unreadable or the pig is
+            unknown. The code becomes a plain counter and no weight is needed.
+          </span>
+        </span>
+      </label>
+
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="label">Gross weight (kg)</label>
-          <input
-            className="input" type="number" step="0.01" min="1" max="500"
-            value={form.gross_weight_kg}
-            onChange={e => set('gross_weight_kg', e.target.value)}
-            placeholder="e.g. 94.65"
-            required
-          />
-        </div>
+        {!form.is_opening_stock && (
+          <div>
+            <label className="label">Gross weight (kg)</label>
+            <input
+              className="input" type="number" step="0.01" min="1" max="500"
+              value={form.gross_weight_kg}
+              onChange={e => set('gross_weight_kg', e.target.value)}
+              placeholder="e.g. 94.65"
+              required
+            />
+          </div>
+        )}
         <div>
           <label className="label">Reception date</label>
           <input
@@ -505,7 +540,7 @@ export default function Pigs() {
             </button>
           </div>
           <p className="text-sm text-brand-700 mb-4">
-            {activePig.gross_weight_kg} kg — {activePig.breed_name} — {formatDate(activePig.receiving_date)}
+            {activePig.gross_weight_kg ? `${activePig.gross_weight_kg} kg` : "Opening stock"} — {activePig.breed_name} — {formatDate(activePig.receiving_date)}
           </p>
 
           <h4 className="font-semibold text-stone-800 mb-3">Assign product batches</h4>
@@ -539,7 +574,7 @@ export default function Pigs() {
               <div>
                 <p className="font-mono font-semibold text-stone-800">{pig.master_code}</p>
                 <p className="text-xs text-stone-400 mt-0.5">
-                  {pig.breed_name} · {pig.gross_weight_kg} kg · {formatDate(pig.receiving_date)}
+                  {pig.breed_name} · {pig.gross_weight_kg ? `${pig.gross_weight_kg} kg` : "Opening stock"} · {formatDate(pig.receiving_date)}
                   {pig.supplier && ` · ${pig.supplier}`}
                 </p>
               </div>
