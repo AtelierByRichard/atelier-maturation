@@ -51,8 +51,12 @@ function BatchRow({ batch }) {
   return (
     <tr className="border-b border-stone-100 last:border-0 hover:bg-stone-50 transition-colors">
       <td className="py-3 pr-3 pl-4">
-        <p className="text-sm font-semibold text-stone-900">{product?.name}</p>
-        <p className="text-xs text-stone-400 font-mono">{batchLabel(batch)}</p>
+        <Link to={`/pigs/${batch.pig_id}`} className="group">
+          <p className="text-sm font-semibold text-stone-900 group-hover:text-brand-700 group-hover:underline">
+            {product?.name}
+          </p>
+          <p className="text-xs text-stone-400 font-mono">{batchLabel(batch)}</p>
+        </Link>
       </td>
       <td className="py-3 pr-3 hidden sm:table-cell">
         <p className="text-sm text-stone-700">{stockText(batch)}</p>
@@ -298,8 +302,12 @@ export default function Dashboard() {
                 {ready.map(b => (
                   <tr key={b.id} className="border-b border-stone-100 last:border-0">
                     <td className="py-3 pr-3 pl-4">
-                      <p className="text-sm font-semibold text-stone-900">{b.products?.name}</p>
-                      <p className="text-xs text-stone-400 font-mono">{batchLabel(b)}</p>
+                      <Link to={`/pigs/${b.pig_id}`} className="group">
+                        <p className="text-sm font-semibold text-stone-900 group-hover:text-brand-700 group-hover:underline">
+                          {b.products?.name}
+                        </p>
+                        <p className="text-xs text-stone-400 font-mono">{batchLabel(b)}</p>
+                      </Link>
                     </td>
                     <td className="py-3 pr-3 hidden sm:table-cell">
                       <p className="text-sm">{stockText(b)}</p>
