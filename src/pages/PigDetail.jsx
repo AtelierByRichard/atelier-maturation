@@ -4,6 +4,7 @@ import { fetchPig, updateBatch } from '../lib/supabase.js';
 import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked, batchLabel, stockText } from '../lib/calculations.js';
 import LabelPrint from '../components/LabelPrint.jsx';
 import ItemWeights from '../components/ItemWeights.jsx';
+import BatchEdit from '../components/BatchEdit.jsx';
 
 function StatusBadge({ status, isReady }) {
   if (isReady || status === 'ready')  return <span className="badge-green">Ready</span>;
@@ -42,6 +43,7 @@ export default function PigDetail() {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [printBatch,   setPrintBatch]   = useState(null);
+  const [editBatch,    setEditBatch]    = useState(null);
 
   useEffect(() => {
     fetchPig(id)
@@ -112,6 +114,12 @@ export default function PigDetail() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <StatusBadge status={batch.status} isReady={status.isReady} />
+                      <button
+                        onClick={() => setEditBatch(editBatch === batch.id ? null : batch.id)}
+                        className="btn-secondary text-xs"
+                      >
+                        {editBatch === batch.id ? 'Close' : '✎ Edit'}
+                      </button>
                       {status.isReady && batch.status === 'maturing' && (
                         <button onClick={() => markReady(batch)} className="btn-secondary text-xs">
                           Mark ready
@@ -126,6 +134,23 @@ export default function PigDetail() {
                       </button>
                     </div>
                   </div>
+
+                  {editBatch === batch.id && (
+                    <BatchEdit
+                      batch={batch}
+                      product={product}
+                      onCancel={() => setEditBatch(null)}
+                      onSaved={updated => {
+                        setPig(prev => ({
+                          ...prev,
+                          batches: prev.batches.map(b =>
+                            b.id === updated.id ? { ...b, ...updated, products: b.products } : b
+                          ),
+                        }));
+                        setEditBatch(null);
+                      }}
+                    />
+                  )}
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
                     <div><p className="text-xs text-stone-400">Cut weight</p><p className="font-medium">{formatKg(batch.cut_weight_kg)}</p></div>

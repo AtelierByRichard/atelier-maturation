@@ -295,6 +295,22 @@ export async function insertItems(items) {
   return data;
 }
 
+/**
+ * Set the same weight on every live piece of a batch.
+ * Used when a whole-muscle batch's weight is corrected — those pieces
+ * have no standard weight, so they follow the batch.
+ */
+export async function setBatchItemWeights(batchId, gramsPerPiece) {
+  const { data, error } = await supabase
+    .from('items')
+    .update({ weight_g: gramsPerPiece })
+    .eq('batch_id', batchId)
+    .in('status', ['maturing', 'ready'])
+    .select();
+  handleError(error, 'setBatchItemWeights');
+  return data;
+}
+
 export async function updateItem(id, updates) {
   const { data, error } = await supabase
     .from('items')
