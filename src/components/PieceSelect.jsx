@@ -163,7 +163,7 @@ export default function PieceSelect({ batch, onChange, requireWeight = true }) {
             >
               <div>{pad(i.sequence_num)}</div>
               <div className={`text-[10px] ${tapped.has(i.id) ? 'text-emerald-50' : 'text-stone-400'}`}>
-                {i.weight_g ? `${(i.weight_g / 1000).toFixed(2)} kg` : 'no weight'}
+                {i.weight_g ? `${(i.weight_g / 1000).toFixed(3)} kg` : 'no weight'}
               </div>
             </button>
           ))}
@@ -193,7 +193,7 @@ export default function PieceSelect({ batch, onChange, requireWeight = true }) {
         <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-900">
           <div className="font-semibold">
             {chosen.length} piece{chosen.length === 1 ? '' : 's'}
-            {requireWeight && <> — {kg.toFixed(2)} kg</>}
+            {requireWeight && <> — {kg.toFixed(3)} kg</>}
           </div>
           <div className="mt-1 font-mono text-xs">
             {formatSequenceRanges(chosen.map(i => i.sequence_num))}

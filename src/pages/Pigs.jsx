@@ -5,7 +5,7 @@ import { fetchPigs, insertPig, fetchProducts, insertBatch, nextSequenceNum, dele
 import {
   pigCode, batchCode, calcTotalDays, calcReadyDate,
   formatDate, toISO, today, isPieceTracked, sequenceRun, itemCode,
-  formatSequenceRanges, batchLabel,
+  formatSequenceRanges, batchLabel, formatKg,
 } from '../lib/calculations.js';
 
 function PigForm({ onSaved, products }) {
@@ -552,7 +552,7 @@ export default function Pigs() {
               {batchesByPig[activePig.id].map(b => (
                 <div key={b.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-3 py-2 text-sm">
                   <span className="font-mono text-stone-700 text-xs">{batchLabel(b)}</span>
-                  <span className="text-stone-500">{b.cut_weight_kg} kg</span>
+                  <span className="text-stone-500">{formatKg(b.cut_weight_kg)}</span>
                   <span className="text-brand-600 text-xs">{formatDate(b.ready_date)}</span>
                 </div>
               ))}

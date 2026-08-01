@@ -79,8 +79,8 @@ export default function ItemEntry({
       JSON.stringify(weights), missingWeights.length]);
 
   const totalKg = standardWeight
-    ? ((fresh.length * (product.target_weight_g || 0)) / 1000).toFixed(2)
-    : (fresh.reduce((s, n) => s + (Number(weights[n]) || 0), 0) / 1000).toFixed(2);
+    ? ((fresh.length * (product.target_weight_g || 0)) / 1000).toFixed(3)
+    : (fresh.reduce((s, n) => s + (Number(weights[n]) || 0), 0) / 1000).toFixed(3);
 
   return (
     <div className="space-y-4 rounded-lg border border-stone-200 bg-stone-50 p-4">
@@ -189,7 +189,7 @@ export default function ItemEntry({
                 <span className="text-xs text-stone-400">g</span>
                 {weights[n] > 0 && (
                   <span className="text-xs text-stone-500">
-                    {(Number(weights[n]) / 1000).toFixed(2)} kg
+                    {(Number(weights[n]) / 1000).toFixed(3)} kg
                   </span>
                 )}
               </div>

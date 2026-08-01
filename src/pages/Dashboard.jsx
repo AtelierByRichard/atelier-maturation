@@ -277,7 +277,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Active batches" value={allActive.length} color="brand" />
-        <StatCard label="Total stock" value={`${totalWeightKg.toFixed(1)} kg`} color="stone" />
+        <StatCard label="Total stock" value={`${totalWeightKg.toFixed(3)} kg`} color="stone" />
         <StatCard label="Cost value" value={formatIDR(costValue)} color="stone" />
         <StatCard label="Sales value" value={formatIDR(salesValue)} color="green" />
       </div>
