@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import PieceLookup from '../components/PieceLookup.jsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -94,6 +95,8 @@ export default function Dashboard() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [productFilter, setProductFilter] = useState('');
+  const [batchSearch,   setBatchSearch]   = useState('');
   const reportRef = useRef(null);
 
   useEffect(() => {
@@ -210,6 +213,20 @@ export default function Dashboard() {
     }
   };
 
+  // Filter the active-batch table by product and by free text, so a
+  // list of 60+ batches can be narrowed to what you're looking at.
+  const productNames = [...new Set(allActive.map(b => b.products?.name).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+
+  const visibleActive = allActive.filter(b => {
+    if (productFilter && b.products?.name !== productFilter) return false;
+    const q = batchSearch.trim().toLowerCase();
+    if (!q) return true;
+    return [b.batch_code, b.products?.name, b.pigs?.master_code]
+      .filter(Boolean)
+      .some(v => String(v).toLowerCase().includes(q));
+  });
+
   // Ready stock rolled up by product: one line per product with its
   // total pieces and weight, rather than one line per batch.
   const readyByProduct = Object.values(
@@ -303,6 +320,8 @@ export default function Dashboard() {
           </Link>
         </div>
       )}
+
+      <PieceLookup />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Active batches" value={allActive.length} color="brand" />
@@ -403,22 +422,61 @@ export default function Dashboard() {
             </Link>
           </div>
         ) : (
-          <div className="card overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-stone-200 bg-stone-50">
-                  <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5 pr-3 pl-4">Product</th>
-                  <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5 pr-3 hidden sm:table-cell">Stock</th>
-                  <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5 pr-3 hidden md:table-cell">Ready on</th>
-                  <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5">Progress</th>
-                  <th className="py-2.5 pr-4"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {allActive.map(b => <BatchRow key={b.id} batch={b} />)}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+              <select
+                className="input sm:w-56"
+                value={productFilter}
+                onChange={e => setProductFilter(e.target.value)}
+              >
+                <option value="">All products</option>
+                {productNames.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <input
+                className="input flex-1 font-mono"
+                value={batchSearch}
+                onChange={e => setBatchSearch(e.target.value)}
+                placeholder="Search by code"
+              />
+            </div>
+
+            {(productFilter || batchSearch.trim()) && (
+              <p className="mb-2 text-xs text-stone-500">
+                {visibleActive.length} of {allActive.length} batches
+                {(productFilter || batchSearch.trim()) && (
+                  <button
+                    onClick={() => { setProductFilter(''); setBatchSearch(''); }}
+                    className="ml-2 underline hover:text-stone-700"
+                  >
+                    clear
+                  </button>
+                )}
+              </p>
+            )}
+
+            <div className="card overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-stone-200 bg-stone-50">
+                    <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5 pr-3 pl-4">Product</th>
+                    <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5 pr-3 hidden sm:table-cell">Stock</th>
+                    <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5 pr-3 hidden md:table-cell">Ready on</th>
+                    <th className="text-left text-xs font-semibold text-stone-500 uppercase tracking-wide py-2.5">Progress</th>
+                    <th className="py-2.5 pr-4"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleActive.length === 0 ? (
+                    <tr><td colSpan={5} className="py-6 text-center text-sm text-stone-400">
+                      No batch matches that filter.
+                    </td></tr>
+                  ) : (
+                    visibleActive.map(b => <BatchRow key={b.id} batch={b} />)
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
       </div>

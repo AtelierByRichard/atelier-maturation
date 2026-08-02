@@ -453,6 +453,7 @@ function BatchForm({ pig, products, onBatchAdded }) {
 }
 
 export default function Pigs() {
+  const [pigSearch, setPigSearch] = useState('');
   const [pigs,     setPigs]     = useState([]);
   const [products, setProducts] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -475,6 +476,19 @@ export default function Pigs() {
     }
     load();
   }, []);
+
+  // Match against everything visible on the row, so searching for a code,
+  // a date, a breed or a supplier all work without choosing a field first.
+  const visiblePigs = (() => {
+    const q = pigSearch.trim().toLowerCase();
+    if (!q) return pigs;
+    return pigs.filter(p =>
+      [p.master_code, p.breed_name, p.supplier, p.receiving_date,
+       p.gross_weight_kg, formatDate(p.receiving_date)]
+        .filter(Boolean)
+        .some(v => String(v).toLowerCase().includes(q))
+    );
+  })();
 
   function handlePigSaved(pig) {
     setPigs(prev => [pig, ...prev]);
@@ -577,6 +591,22 @@ export default function Pigs() {
         </div>
       )}
 
+      {pigs.length > 5 && (
+        <div>
+          <input
+            className="input font-mono"
+            value={pigSearch}
+            onChange={e => setPigSearch(e.target.value)}
+            placeholder="Search receptions — code, date or supplier"
+          />
+          {pigSearch.trim() && (
+            <p className="mt-1 text-xs text-stone-500">
+              {visiblePigs.length} of {pigs.length} receptions
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         {pigs.length === 0 ? (
           <div className="card p-10 text-center text-stone-400">
@@ -584,8 +614,12 @@ export default function Pigs() {
             <p className="font-medium">No receptions recorded yet.</p>
             <p className="text-sm mt-1">Start by registering your first pig.</p>
           </div>
+        ) : visiblePigs.length === 0 ? (
+          <div className="card p-8 text-center text-sm text-stone-400">
+            No reception matches “{pigSearch.trim()}”.
+          </div>
         ) : (
-          pigs.filter(pig => pig.id !== activePig?.id).map(pig => (
+          visiblePigs.filter(pig => pig.id !== activePig?.id).map(pig => (
             <div key={pig.id} className="card p-4 flex items-center justify-between">
               <div>
                 <p className="font-mono font-semibold text-stone-800">{pig.master_code}</p>

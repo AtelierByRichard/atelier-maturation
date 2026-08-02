@@ -349,6 +349,36 @@ export async function insertItems(items) {
 }
 
 /**
+ * Find pieces by code or number.
+ *
+ * Accepts a bare number ("34" or "034"), a fragment of a code, or a
+ * whole code. Returns the piece plus enough of its batch and pig to
+ * show what it is and link to it.
+ */
+export async function searchItems(query, limit = 30) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+
+  const select = `
+    *,
+    batches ( id, batch_code, ready_date, status ),
+    products ( name, code )
+  `;
+
+  // A bare number means a piece number; anything else is a code fragment.
+  const asNumber = /^\d{1,3}$/.test(q) ? parseInt(q, 10) : null;
+
+  let request = supabase.from('items').select(select).limit(limit);
+  request = asNumber !== null
+    ? request.or(`sequence_num.eq.${asNumber},item_code.ilike.%${q}%`)
+    : request.ilike('item_code', `%${q}%`);
+
+  const { data, error } = await request.order('item_code');
+  handleError(error, 'searchItems');
+  return data || [];
+}
+
+/**
  * Set the same weight on every live piece of a batch.
  * Used when a whole-muscle batch's weight is corrected — those pieces
  * have no standard weight, so they follow the batch.
