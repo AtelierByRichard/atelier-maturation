@@ -8,7 +8,7 @@ import {
   formatSequenceRanges, batchLabel, formatKg,
 } from '../lib/calculations.js';
 
-function PigForm({ onSaved, products }) {
+function PigForm({ onSaved, products, existingCodes = [] }) {
   const todayStr = toISO(today());
 
   const [form, setForm] = useState({
@@ -43,6 +43,10 @@ function PigForm({ onSaved, products }) {
     : (form.gross_weight_kg && form.receiving_date
         ? pigCode({ ...form, gross_weight_kg: Number(form.gross_weight_kg) })
         : '—');
+
+  // Same date + same weight produces the same code, which is almost
+  // always a double entry rather than two genuinely identical pigs.
+  const isDuplicate = previewCode !== '—' && existingCodes.includes(previewCode);
 
   function set(field, value) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -143,15 +147,36 @@ function PigForm({ onSaved, products }) {
         <textarea className="input resize-none" rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} />
       </div>
 
-      <div className="bg-brand-50 border border-brand-200 rounded-lg p-3">
-        <p className="text-xs text-brand-600 font-semibold uppercase tracking-wide mb-1">Generated batch code</p>
-        <p className="font-mono text-brand-800 text-lg font-bold">{previewCode}</p>
+      <div className={`rounded-lg p-3 border ${
+        isDuplicate ? 'bg-amber-50 border-amber-300' : 'bg-brand-50 border-brand-200'
+      }`}>
+        <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
+          isDuplicate ? 'text-amber-700' : 'text-brand-600'
+        }`}>
+          Generated batch code
+        </p>
+        <p className={`font-mono text-lg font-bold ${
+          isDuplicate ? 'text-amber-900' : 'text-brand-800'
+        }`}>
+          {previewCode}
+        </p>
+        {isDuplicate && (
+          <p className="mt-2 text-xs text-amber-800">
+            <strong>This code already exists.</strong> A reception with the same date and
+            weight is already recorded. Check the list before saving — if this really is a
+            second pig, change the weight so the two can be told apart.
+          </p>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button type="submit" disabled={saving} className="btn-primary w-full">
-        {saving ? 'Saving…' : 'Save reception'}
+      <button
+        type="submit"
+        disabled={saving}
+        className={isDuplicate ? 'btn-secondary w-full' : 'btn-primary w-full'}
+      >
+        {saving ? 'Saving…' : isDuplicate ? 'Save anyway' : 'Save reception'}
       </button>
     </form>
   );
@@ -547,7 +572,7 @@ export default function Pigs() {
             <h3 className="font-semibold text-stone-900">New pig reception</h3>
             <button className="text-stone-400 hover:text-stone-600" onClick={() => setShowNewPig(false)}>✕</button>
           </div>
-          <PigForm onSaved={handlePigSaved} products={products} />
+          <PigForm onSaved={handlePigSaved} products={products} existingCodes={pigs.map(p => p.master_code)} />
         </div>
       )}
 
