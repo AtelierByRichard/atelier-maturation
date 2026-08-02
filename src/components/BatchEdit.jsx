@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { updateBatch, setBatchItemWeights } from '../lib/supabase';
+import { updateBatch, setBatchItemWeights, deleteBatch } from '../lib/supabase';
 import {
   calcTotalDays, calcReadyDate, toISO, formatDate,
   isPieceTracked, usesStandardWeight,
@@ -12,7 +12,7 @@ import {
  * comes from the tracking numbers themselves, so use "Adjust numbers".
  * Editing it in two places would let the two disagree.
  */
-export default function BatchEdit({ batch, product, onSaved, onCancel }) {
+export default function BatchEdit({ batch, product, onSaved, onCancel, onDeleted }) {
   const tracked  = isPieceTracked(product);
   const standard = usesStandardWeight(product);
   const pieces   = batch.pieces || 1;
@@ -30,6 +30,19 @@ export default function BatchEdit({ batch, product, onSaved, onCancel }) {
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState(null);
+  const [confirming, setConfirming] = useState(false);
+
+  async function remove() {
+    setError(null);
+    setSaving(true);
+    try {
+      await deleteBatch(batch.id);
+      onDeleted?.(batch.id);
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -140,13 +153,42 @@ export default function BatchEdit({ batch, product, onSaved, onCancel }) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="btn-primary text-sm">
+      <div className="flex items-center gap-2">
+        <button type="submit" disabled={saving || confirming} className="btn-primary text-sm">
           {saving ? 'Saving…' : 'Save changes'}
         </button>
         <button type="button" onClick={onCancel} className="btn-secondary text-sm">
           Cancel
         </button>
+
+        {!confirming ? (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="ml-auto text-sm text-red-600 hover:underline"
+          >
+            Delete batch
+          </button>
+        ) : (
+          <span className="ml-auto flex items-center gap-2 text-sm">
+            <span className="text-red-700">Delete and its {pieces} piece{pieces > 1 ? 's' : ''}?</span>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={saving}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+            >
+              {saving ? 'Deleting…' : 'Yes, delete'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="text-xs text-stone-600 hover:underline"
+            >
+              No
+            </button>
+          </span>
+        )}
       </div>
     </form>
   );

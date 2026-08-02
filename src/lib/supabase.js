@@ -349,6 +349,15 @@ export async function insertItems(items) {
 }
 
 /**
+ * Delete a batch and everything under it.
+ * Its pieces and stock movements go too, via ON DELETE CASCADE.
+ */
+export async function deleteBatch(id) {
+  const { error } = await supabase.from('batches').delete().eq('id', id);
+  handleError(error, 'deleteBatch');
+}
+
+/**
  * Find pieces by code or number.
  *
  * Accepts a bare number ("34" or "034"), a fragment of a code, or a

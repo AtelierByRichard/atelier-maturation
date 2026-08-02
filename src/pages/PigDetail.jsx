@@ -162,6 +162,13 @@ export default function PigDetail() {
                       batch={batch}
                       product={product}
                       onCancel={() => setEditBatch(null)}
+                      onDeleted={id => {
+                        setPig(prev => ({
+                          ...prev,
+                          batches: prev.batches.filter(b => b.id !== id),
+                        }));
+                        setEditBatch(null);
+                      }}
                       onSaved={updated => {
                         setPig(prev => ({
                           ...prev,
