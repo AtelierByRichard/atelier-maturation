@@ -362,7 +362,7 @@ export default function Forecast() {
             <thead>
               <tr className="border-b border-stone-100">
                 <th className="text-left text-xs font-semibold text-stone-400 uppercase tracking-wide px-5 py-2.5">Product</th>
-                <th className="text-left text-xs font-semibold text-stone-400 uppercase tracking-wide px-5 py-2.5">Batches</th>
+                <th className="text-left text-xs font-semibold text-stone-400 uppercase tracking-wide px-5 py-2.5">Pieces</th>
                 <th className="text-left text-xs font-semibold text-stone-400 uppercase tracking-wide px-5 py-2.5">
                   Total stock ({isKg ? 'kg' : 'pcs'})
                 </th>
@@ -375,7 +375,14 @@ export default function Forecast() {
                 return (
                   <tr key={name} className="border-b border-stone-100 last:border-0">
                     <td className="px-5 py-3 text-sm font-semibold text-stone-900">{name}</td>
-                    <td className="px-5 py-3 text-sm text-stone-600">{bList.length} batch{bList.length > 1 ? 'es' : ''}</td>
+                    {/* Whole muscle goes in one piece per batch, so counting
+                        batches would read as "50 batches" for 50 coppas.
+                        Count the pieces instead; batches are the plumbing. */}
+                    <td className="px-5 py-3 text-sm text-stone-600">
+                      {totalPieces > 0
+                        ? `${totalPieces} pc${totalPieces > 1 ? 's' : ''}`
+                        : `${bList.length} batch${bList.length > 1 ? 'es' : ''}`}
+                    </td>
                     <td className="px-5 py-3 text-sm text-stone-700">
                       {isKg ? formatKg(totalKg) : `${totalPieces} pcs`}
                     </td>
