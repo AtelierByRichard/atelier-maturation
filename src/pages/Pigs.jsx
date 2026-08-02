@@ -230,7 +230,12 @@ function BatchForm({ pig, products, onBatchAdded }) {
     setSaving(true);
     try {
       const prod = selectedProduct;
-      const seqNum = await nextSequenceNum(pig.id, prod.code);
+      // For piece-tracked products the batch's number IS its first piece
+      // number, so the trailing 3 digits always mean a tracking number.
+      // Untracked products keep a plain batch counter.
+      const seqNum = prod.track_pieces
+        ? Number(startNum)
+        : await nextSequenceNum(pig.id, prod.code);
       const dim  = Number(form.dimension_cm) || 0;
       const perPiece = Number(form.cut_weight_kg);
       const pieceCountEarly = Number(form.pieces) || 0;
@@ -267,8 +272,10 @@ function BatchForm({ pig, products, onBatchAdded }) {
       // Give each piece its 3-digit tracking number. Nothing else about
       // the batch procedure changes — the numbers simply run on from the
       // highest one this pig has already used for this product.
+      let pieceNumbers = [];
       if (prod.track_pieces && pieceCount > 0) {
         const { numbers, errors } = sequenceRun(startNum, pieceCount);
+        pieceNumbers = numbers;
         if (errors.length) throw new Error(errors[0]);
         const clash = numbers.filter(n => usedNums.has(n));
         if (clash.length) {
@@ -290,7 +297,9 @@ function BatchForm({ pig, products, onBatchAdded }) {
         })));
       }
 
-      onBatchAdded(saved);
+      // Carry the product through so the list can tell whether this is a
+      // piece-tracked batch, and hide its batch number if so.
+      onBatchAdded({ ...saved, products: prod, piece_numbers: pieceNumbers });
 
       setForm(prev => ({
         ...prev,
@@ -551,7 +560,14 @@ export default function Pigs() {
               <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Batches created</p>
               {batchesByPig[activePig.id].map(b => (
                 <div key={b.id} className="flex items-center justify-between bg-white rounded-lg border border-stone-200 px-3 py-2 text-sm">
-                  <span className="font-mono text-stone-700 text-xs">{batchLabel(b)}</span>
+                  <span className="font-mono text-stone-700 text-xs">
+                    {batchLabel(b)}
+                    {b.piece_numbers?.length > 0 && (
+                      <span className="ml-2 text-stone-400">
+                        · pieces {formatSequenceRanges(b.piece_numbers)}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-stone-500">{formatKg(b.cut_weight_kg)}</span>
                   <span className="text-brand-600 text-xs">{formatDate(b.ready_date)}</span>
                 </div>

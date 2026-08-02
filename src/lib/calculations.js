@@ -190,7 +190,10 @@ export function usesStandardWeight(product) {
  */
 export function batchLabel(batch) {
   if (!batch?.batch_code) return '—';
-  if (batch.products?.track_pieces) {
+  // A batch holding one piece IS that piece — show the number.
+  // A batch holding several would read as "piece 034" while containing
+  // nine, so the number is dropped and the range shown separately.
+  if (batch.products?.track_pieces && (batch.pieces ?? 1) > 1) {
     return batch.batch_code.replace(/-\d{3}$/, '');
   }
   return batch.batch_code;
