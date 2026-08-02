@@ -210,6 +210,23 @@ export default function Dashboard() {
     }
   };
 
+  // Ready stock rolled up by product: one line per product with its
+  // total pieces and weight, rather than one line per batch.
+  const readyByProduct = Object.values(
+    ready.reduce((acc, b) => {
+      const name = b.products?.name || '—';
+      acc[name] ??= { name, kg: 0, pieces: 0 };
+      acc[name].kg     += Number(b.current_weight_kg) || 0;
+      acc[name].pieces += Number(b.current_pieces)    || 0;
+      return acc;
+    }, {})
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const readyTotals = readyByProduct.reduce(
+    (t, p) => ({ kg: t.kg + p.kg, pieces: t.pieces + p.pieces }),
+    { kg: 0, pieces: 0 }
+  );
+
   const totalWeightKg = allActive.reduce((s, b) => s + (b.current_weight_kg || 0), 0);
   const costValue     = allActive.reduce((s, b) =>
     s + stockValue(b.current_weight_kg, b.products?.cost_price_idr), 0);
@@ -261,13 +278,25 @@ export default function Dashboard() {
               {ready.length} batch{ready.length > 1 ? 'es' : ''} ready for sale
             </p>
           </div>
+          {/* Grouped by product — one line per product, not per batch, so
+              eight separate coppa batches read as "Coppa · 8 pcs · 12.4 kg". */}
           <ul className="space-y-1">
-            {ready.map(b => (
-              <li key={b.id} className="flex items-center justify-between text-sm">
-                <span className="text-emerald-800 font-medium">{b.products?.name}</span>
-                <span className="text-emerald-600 font-mono text-xs">{formatKg(b.current_weight_kg)}</span>
+            {readyByProduct.map(p => (
+              <li key={p.name} className="flex items-center justify-between text-sm">
+                <span className="text-emerald-800 font-medium">{p.name}</span>
+                <span className="text-emerald-600 font-mono text-xs">
+                  {p.pieces > 0 && <>{p.pieces} pc{p.pieces > 1 ? 's' : ''} · </>}
+                  {formatKg(p.kg)}
+                </span>
               </li>
             ))}
+            <li className="mt-2 flex items-center justify-between border-t border-emerald-200 pt-2 text-sm font-semibold">
+              <span className="text-emerald-900">Total</span>
+              <span className="text-emerald-800 font-mono text-xs">
+                {readyTotals.pieces > 0 && <>{readyTotals.pieces} pcs · </>}
+                {formatKg(readyTotals.kg)}
+              </span>
+            </li>
           </ul>
           <Link to="/stock-out" className="mt-3 block text-center btn-primary text-sm">
             Record a stock out →
