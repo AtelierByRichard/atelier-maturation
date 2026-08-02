@@ -219,6 +219,59 @@ export async function nextSequenceNum(pigId, productCode) {
 }
 
 /**
+ * Update a reception and cascade the master code through everything
+ * that embeds it.
+ *
+ * The master code appears inside every batch_code and item_code, so
+ * changing a pig's weight or date has to rewrite those too, or the
+ * codes stop matching the pig they belong to.
+ */
+export async function updatePigCascade(pigId, updates, oldMasterCode, newMasterCode) {
+  const { data: pig, error: pigErr } = await supabase
+    .from('pigs')
+    .update(updates)
+    .eq('id', pigId)
+    .select()
+    .single();
+  handleError(pigErr, 'updatePigCascade/pig');
+
+  if (oldMasterCode === newMasterCode) return pig;
+
+  const rename = code =>
+    typeof code === 'string' && code.startsWith(oldMasterCode)
+      ? newMasterCode + code.slice(oldMasterCode.length)
+      : code;
+
+  const { data: batches, error: bErr } = await supabase
+    .from('batches').select('id, batch_code').eq('pig_id', pigId);
+  handleError(bErr, 'updatePigCascade/fetchBatches');
+
+  for (const b of batches || []) {
+    const next = rename(b.batch_code);
+    if (next !== b.batch_code) {
+      const { error } = await supabase
+        .from('batches').update({ batch_code: next }).eq('id', b.id);
+      handleError(error, 'updatePigCascade/batch');
+    }
+  }
+
+  const { data: items, error: iErr } = await supabase
+    .from('items').select('id, item_code').eq('pig_id', pigId);
+  handleError(iErr, 'updatePigCascade/fetchItems');
+
+  for (const it of items || []) {
+    const next = rename(it.item_code);
+    if (next !== it.item_code) {
+      const { error } = await supabase
+        .from('items').update({ item_code: next }).eq('id', it.id);
+      handleError(error, 'updatePigCascade/item');
+    }
+  }
+
+  return pig;
+}
+
+/**
  * Next counter for an opening-stock reception on a given date.
  * "BH 20260601 001", then 002, 003 …
  */

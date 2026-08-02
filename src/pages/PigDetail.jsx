@@ -5,6 +5,7 @@ import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked, bat
 import LabelPrint from '../components/LabelPrint.jsx';
 import ItemWeights from '../components/ItemWeights.jsx';
 import BatchEdit from '../components/BatchEdit.jsx';
+import PigEdit from '../components/PigEdit.jsx';
 
 function StatusBadge({ status, isReady }) {
   if (isReady || status === 'ready')  return <span className="badge-green">Ready</span>;
@@ -44,6 +45,7 @@ export default function PigDetail() {
   const [error,        setError]        = useState(null);
   const [printBatch,   setPrintBatch]   = useState(null);
   const [editBatch,    setEditBatch]    = useState(null);
+  const [editPig,      setEditPig]      = useState(false);
 
   useEffect(() => {
     fetchPig(id)
@@ -79,7 +81,15 @@ export default function PigDetail() {
       </div>
 
       <div className="card p-5">
-        <h2 className="font-mono text-xl font-bold text-stone-900 mb-1">{pig.master_code}</h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="font-mono text-xl font-bold text-stone-900 mb-1">{pig.master_code}</h2>
+          <button
+            onClick={() => setEditPig(v => !v)}
+            className="btn-secondary text-xs shrink-0"
+          >
+            {editPig ? 'Close' : '✎ Edit reception'}
+          </button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
           <div><p className="text-xs text-stone-400">Breed</p><p className="font-medium">{pig.breed_name}</p></div>
           <div><p className="text-xs text-stone-400">Gross weight</p><p className="font-medium">{pig.gross_weight_kg ? `${pig.gross_weight_kg} kg` : "— opening stock"}</p></div>
@@ -87,6 +97,18 @@ export default function PigDetail() {
           <div><p className="text-xs text-stone-400">Supplier</p><p className="font-medium">{pig.supplier || '—'}</p></div>
         </div>
         {pig.notes && <p className="mt-3 text-sm text-stone-500 bg-stone-50 rounded-lg px-3 py-2">{pig.notes}</p>}
+
+        {editPig && (
+          <PigEdit
+            pig={pig}
+            onCancel={() => setEditPig(false)}
+            onSaved={saved => {
+              setEditPig(false);
+              // Codes beneath may have been rewritten, so reload.
+              fetchPig(id).then(setPig).catch(e => setError(e.message));
+            }}
+          />
+        )}
       </div>
 
       <div>
