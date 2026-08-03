@@ -65,7 +65,12 @@ export default function PieceLookup() {
               <table className="w-full text-sm">
                 <tbody className="divide-y divide-stone-100">
                   {results.map(i => {
-                    const s = STATUS[i.status] || STATUS.maturing;
+                    // "Ready" is derived from the date, not stored — a piece
+                    // stays 'maturing' in the database until it leaves stock.
+                    const readyDate = i.batches?.ready_date;
+                    const isRipe = (i.status === 'maturing' || i.status === 'ready')
+                      && readyDate && new Date(readyDate) <= new Date();
+                    const s = isRipe ? STATUS.ready : (STATUS[i.status] || STATUS.maturing);
                     return (
                       <tr key={i.id} className="hover:bg-stone-50">
                         <td className="px-3 py-2">

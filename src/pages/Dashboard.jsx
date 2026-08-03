@@ -14,7 +14,7 @@ import {
   stockText,
   formatKg,
   formatIDR,
-  stockValue,
+  batchValue,
   calcBatchStatus,
 } from '../lib/calculations.js';
 
@@ -246,9 +246,9 @@ export default function Dashboard() {
 
   const totalWeightKg = allActive.reduce((s, b) => s + (b.current_weight_kg || 0), 0);
   const costValue     = allActive.reduce((s, b) =>
-    s + stockValue(b.current_weight_kg, b.products?.cost_price_idr), 0);
+    s + batchValue(b, 'cost'), 0);
   const salesValue    = allActive.reduce((s, b) =>
-    s + stockValue(b.current_weight_kg, b.products?.sales_price_idr), 0);
+    s + batchValue(b, 'sales'), 0);
 
   if (loading) {
     return (

@@ -510,6 +510,27 @@ export function stockValue(weightKg, pricePerKgIdr) {
 }
 
 /**
+ * Value of a batch's remaining stock.
+ *
+ * Prices are held on whatever basis the product is sold in:
+ *   - piece products (a saucisson has a fixed 250 g)  → price per piece
+ *   - whole muscle and bulk (sold by weight)          → price per kg
+ *
+ * @param {object} batch  with products, current_pieces, current_weight_kg
+ * @param {'cost'|'sales'} which
+ */
+export function batchValue(batch, which = 'sales') {
+  const prod  = batch?.products;
+  if (!prod) return 0;
+  const price = which === 'cost' ? prod.cost_price_idr : prod.sales_price_idr;
+  if (!price) return 0;
+
+  return prod.target_weight_g != null
+    ? Math.round((batch.current_pieces   || 0) * price)
+    : Math.round((batch.current_weight_kg || 0) * price);
+}
+
+/**
  * Format IDR currency  →  "Rp 1.250.000"
  */
 export function formatIDR(amount) {
