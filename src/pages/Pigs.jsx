@@ -316,7 +316,13 @@ function BatchForm({ pig, products, onBatchAdded }) {
           product_code: prod.code,
           sequence_num: n,
           item_code:    itemCode(pig, prod.code, n),
-          weight_g:     prod.target_weight_g ?? null,
+          // Sausages take their standard weight. Whole muscle has none, so
+          // the pieces share the batch weight — otherwise they'd be
+          // weightless and couldn't be taken out of stock by piece.
+          weight_g:     prod.target_weight_g
+                          ?? (pieceCount > 0
+                                ? Math.round((wt * 1000) / pieceCount)
+                                : null),
           status:       'maturing',
           source:       'generated',
         })));

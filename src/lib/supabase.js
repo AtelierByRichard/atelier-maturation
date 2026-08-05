@@ -349,6 +349,37 @@ export async function insertItems(items) {
 }
 
 /**
+ * Move a batch's pieces onto a different product.
+ *
+ * Used when a batch was entered under the wrong product. The pieces are
+ * renumbered from the batch's new sequence and their codes rewritten, so
+ * a batch and its pieces never disagree about what they are.
+ */
+export async function retagBatchItems(batchId, product, startSeq, batchCode) {
+  const { data: rows, error: fetchErr } = await supabase
+    .from('items').select('id').eq('batch_id', batchId).order('sequence_num');
+  handleError(fetchErr, 'retagBatchItems/fetch');
+
+  let seq = startSeq;
+  for (const row of rows || []) {
+    const code = batchCode.replace(/-\d{3}$/, `-${String(seq).padStart(3, '0')}`);
+    const { error } = await supabase
+      .from('items')
+      .update({
+        product_id:   product.id,
+        product_code: product.code,
+        sequence_num: seq,
+        item_code:    code,
+        weight_g:     product.target_weight_g ?? undefined,
+      })
+      .eq('id', row.id);
+    handleError(error, 'retagBatchItems/update');
+    seq += 1;
+  }
+  return rows?.length || 0;
+}
+
+/**
  * Delete a batch and everything under it.
  * Its pieces and stock movements go too, via ON DELETE CASCADE.
  */

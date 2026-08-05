@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { updateBatch, setBatchItemWeights, deleteBatch } from '../lib/supabase';
+import { updateBatch, setBatchItemWeights, deleteBatch,
+         lastItemSequence, retagBatchItems } from '../lib/supabase';
 import {
   calcTotalDays, calcReadyDate, toISO, formatDate,
   isPieceTracked, usesStandardWeight,
@@ -12,17 +13,18 @@ import {
  * comes from the tracking numbers themselves, so use "Adjust numbers".
  * Editing it in two places would let the two disagree.
  */
-export default function BatchEdit({ batch, product, onSaved, onCancel, onDeleted }) {
-  const tracked  = isPieceTracked(product);
-  const standard = usesStandardWeight(product);
-  const pieces   = batch.pieces || 1;
+export default function BatchEdit({ batch, product, products = [], onSaved, onCancel, onDeleted }) {
+  const pieces = batch.pieces || 1;
 
-  // Sausages are entered per piece; everything else as a batch total.
-  const perPiece = standard && pieces > 0
+  // The product can be changed here, so everything downstream follows
+  // the SELECTED product rather than the one the batch started with.
+  const startedStandard = usesStandardWeight(product);
+  const perPiece = startedStandard && pieces > 0
     ? (Number(batch.cut_weight_kg) / pieces)
     : Number(batch.cut_weight_kg);
 
   const [form, setForm] = useState({
+    product_id:    batch.product_id,
     cut_weight_kg: (perPiece || 0).toFixed(3),
     pieces:        pieces,
     start_date:    batch.start_date,
@@ -44,13 +46,18 @@ export default function BatchEdit({ batch, product, onSaved, onCancel, onDeleted
     }
   }
 
+  const chosen   = products.find(p => p.id === form.product_id) || product;
+  const tracked  = isPieceTracked(chosen);
+  const standard = usesStandardWeight(chosen);
+  const productChanged = chosen?.id !== batch.product_id;
+
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const entered    = Number(form.cut_weight_kg) || 0;
   const pieceCount = tracked ? pieces : (Number(form.pieces) || 1);
   const totalKg    = standard ? entered * pieceCount : entered;
 
-  const days      = product ? calcTotalDays(product, batch.dimension_cm, totalKg) : 0;
+  const days      = chosen ? calcTotalDays(chosen, batch.dimension_cm, totalKg) : 0;
   const readyDate = form.start_date ? calcReadyDate(form.start_date, days) : null;
 
   async function save(e) {
@@ -72,7 +79,25 @@ export default function BatchEdit({ batch, product, onSaved, onCancel, onDeleted
         updates.current_weight_kg = Number(totalKg.toFixed(3));
       }
 
+      // Changing product means a new code and a new number in that
+      // product's sequence, carried down to the pieces.
+      if (productChanged) {
+        const nextSeq = (await lastItemSequence(batch.pig_id, chosen.code)) + 1;
+        const newCode = batch.batch_code.replace(
+          /-[A-Z]{3}-\d{3}$/,
+          `-${chosen.code}-${String(nextSeq).padStart(3, '0')}`
+        );
+        updates.product_id   = chosen.id;
+        updates.product_code = chosen.code;
+        updates.sequence_num = nextSeq;
+        updates.batch_code   = newCode;
+      }
+
       const saved = await updateBatch(batch.id, updates);
+
+      if (productChanged) {
+        await retagBatchItems(batch.id, chosen, saved.sequence_num, saved.batch_code);
+      }
 
       // Whole muscle: the pieces have no standard weight, so they follow
       // the batch. The DB trigger then recalculates the stock weight.
@@ -91,6 +116,25 @@ export default function BatchEdit({ batch, product, onSaved, onCancel, onDeleted
   return (
     <form onSubmit={save} className="mt-3 space-y-3 rounded-lg border border-brand-200 bg-brand-50 p-4">
       <p className="text-sm font-semibold text-stone-800">Edit batch</p>
+
+      <div>
+        <label className="label">Product</label>
+        <select
+          className="input"
+          value={form.product_id}
+          onChange={e => set('product_id', e.target.value)}
+        >
+          {products.map(p => (
+            <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+          ))}
+        </select>
+        {productChanged && (
+          <p className="mt-1 text-xs text-amber-700">
+            Changing to <strong>{chosen?.name}</strong> renumbers this batch and its
+            pieces into the {chosen?.code} sequence, and recalculates the ready date.
+          </p>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>

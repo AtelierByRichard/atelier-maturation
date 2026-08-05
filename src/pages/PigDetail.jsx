@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchPig, updateBatch } from '../lib/supabase.js';
+import { fetchPig, updateBatch, fetchProducts } from '../lib/supabase.js';
 import { formatDate, formatKg, calcBatchStatus, buildStages, isPieceTracked, batchLabel, stockText } from '../lib/calculations.js';
 import LabelPrint from '../components/LabelPrint.jsx';
 import ItemWeights from '../components/ItemWeights.jsx';
@@ -46,6 +46,7 @@ export default function PigDetail() {
   const [printBatch,   setPrintBatch]   = useState(null);
   const [editBatch,    setEditBatch]    = useState(null);
   const [editPig,      setEditPig]      = useState(false);
+  const [products,     setProducts]     = useState([]);
 
   useEffect(() => {
     fetchPig(id)
@@ -53,6 +54,8 @@ export default function PigDetail() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => { fetchProducts().then(setProducts).catch(() => {}); }, []);
 
   async function markReady(batch) {
     await updateBatch(batch.id, { status: 'ready' });
@@ -161,6 +164,7 @@ export default function PigDetail() {
                     <BatchEdit
                       batch={batch}
                       product={product}
+                      products={products}
                       onCancel={() => setEditBatch(null)}
                       onDeleted={id => {
                         setPig(prev => ({
@@ -169,14 +173,10 @@ export default function PigDetail() {
                         }));
                         setEditBatch(null);
                       }}
-                      onSaved={updated => {
-                        setPig(prev => ({
-                          ...prev,
-                          batches: prev.batches.map(b =>
-                            b.id === updated.id ? { ...b, ...updated, products: b.products } : b
-                          ),
-                        }));
+                      onSaved={() => {
                         setEditBatch(null);
+                        // Product, codes and dates may all have moved — reload.
+                        fetchPig(id).then(setPig).catch(e => setError(e.message));
                       }}
                     />
                   )}
