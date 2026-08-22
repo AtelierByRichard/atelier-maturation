@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchBatches, recordMovement, recordAdjustment, setItemsStatus } from '../lib/supabase.js';
 import { formatDate, formatKg, applyMovement, today, toISO, isPieceTracked, usesStandardWeight, batchLabel } from '../lib/calculations.js';
 import PieceSelect from '../components/PieceSelect.jsx';
+import BatchPicker from '../components/BatchPicker.jsx';
 
 const TABS = [
   { key: 'sale',       label: 'Sale' },
@@ -110,14 +111,11 @@ function MovementForm({ type, batches, onSaved }) {
 
       <div>
         <label className="label">Batch</label>
-        <select className="input" value={form.batch_id} onChange={e => set('batch_id', e.target.value)} required>
-          <option value="">— Select a batch —</option>
-          {availableBatches.map(b => (
-            <option key={b.id} value={b.id}>
-              {b.products?.name} — {batchLabel(b)} — {formatKg(b.current_weight_kg)}
-            </option>
-          ))}
-        </select>
+        <BatchPicker
+          batches={availableBatches}
+          value={form.batch_id}
+          onChange={id => set('batch_id', id)}
+        />
         {selectedBatch && (
           <div className="mt-1.5 flex gap-4 text-xs text-stone-500">
             <span>Stock: {formatKg(selectedBatch.current_weight_kg)}</span>
@@ -299,14 +297,11 @@ function AdjustmentForm({ batches, onSaved }) {
 
       <div>
         <label className="label">Batch</label>
-        <select className="input" value={form.batch_id} onChange={e => set('batch_id', e.target.value)} required>
-          <option value="">— Select a batch —</option>
-          {activeBatches.map(b => (
-            <option key={b.id} value={b.id}>
-              {b.products?.name} — {batchLabel(b)}
-            </option>
-          ))}
-        </select>
+        <BatchPicker
+          batches={activeBatches}
+          value={form.batch_id}
+          onChange={id => set('batch_id', id)}
+        />
         {selectedBatch && (
           <div className="mt-1.5 text-xs text-stone-500 flex gap-4">
             <span>System: {formatKg(selectedBatch.current_weight_kg)}</span>
