@@ -72,6 +72,20 @@ const PRODUCT_ORDER = [
   'GUA', 'LON', 'PIT', 'SAU', 'BAC', 'TYR', 'VEN',
 ];
 
+const CHECKBOX = '☐';
+const CHECKBOX_STYLE = {
+  font: { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1F3B2C' } },
+  fill: { type: 'pattern', pattern: 'none' },
+  border: {
+    top:    { style: 'thin', color: { argb: 'FFB0B0B0' } },
+    left:   { style: 'thin', color: { argb: 'FFB0B0B0' } },
+    bottom: { style: 'thin', color: { argb: 'FFB0B0B0' } },
+    right:  { style: 'thin', color: { argb: 'FFB0B0B0' } },
+  },
+  alignment: { horizontal: 'center', vertical: 'middle' },
+  numFmt: 'General',
+};
+
 /**
  * Fills "Count Sheet" grouped by product — a green header band per product
  * (matching "Count Sheet (Pieces)"'s banner style) with one row per live
@@ -89,12 +103,12 @@ function fillCountSheet(wb, items, now) {
 
   // Capture styles from the pristine template before any row is touched.
   const dataStyle = {};
-  for (let c = 1; c <= 13; c++) dataStyle[c] = cloneStyle(ws.getCell(FIRST_ROW, c));
+  for (let c = 1; c <= 14; c++) dataStyle[c] = cloneStyle(ws.getCell(FIRST_ROW, c));
   const dataRowHeight = ws.getRow(FIRST_ROW).height;
-  const reasonValidation = ws.getCell(`L${FIRST_ROW}`).dataValidation;
+  const reasonValidation = ws.getCell(`M${FIRST_ROW}`).dataValidation;
 
   const headerStyle = {};
-  for (let c = 1; c <= 13; c++) headerStyle[c] = cloneStyle(piecesWs.getCell(FIRST_ROW, c));
+  for (let c = 1; c <= 14; c++) headerStyle[c] = cloneStyle(piecesWs.getCell(FIRST_ROW, c));
   const headerRowHeight = piecesWs.getRow(FIRST_ROW).height;
 
   // Group live items by product code, in the Reconciliation tab's order;
@@ -119,7 +133,7 @@ function fillCountSheet(wb, items, now) {
   const delta = neededRows - (originalTotalRow - FIRST_ROW);
 
   if (delta > 0) {
-    ws.spliceRows(originalTotalRow, 0, ...new Array(delta).fill(new Array(13).fill(null)));
+    ws.spliceRows(originalTotalRow, 0, ...new Array(delta).fill(new Array(14).fill(null)));
   } else if (delta < 0) {
     ws.spliceRows(originalTotalRow + delta, -delta);
   }
@@ -127,13 +141,13 @@ function fillCountSheet(wb, items, now) {
 
   let r = FIRST_ROW;
   for (const group of groups) {
-    for (let c = 1; c <= 13; c++) applyStyle(ws.getCell(r, c), headerStyle[c]);
+    for (let c = 1; c <= 14; c++) applyStyle(ws.getCell(r, c), headerStyle[c]);
     ws.getRow(r).height = headerRowHeight;
     ws.getCell(r, 1).value = `${group.name}  (${group.code})`;
     r += 1;
 
     for (const it of group.items) {
-      for (let c = 1; c <= 13; c++) applyStyle(ws.getCell(r, c), dataStyle[c]);
+      for (let c = 1; c <= 14; c++) applyStyle(ws.getCell(r, c), dataStyle[c]);
       ws.getRow(r).height = dataRowHeight;
 
       const batch = it.batches;
@@ -151,10 +165,12 @@ function fillCountSheet(wb, items, now) {
       ws.getCell(r, 5).value = it.weight_g != null ? Number(it.weight_g) / 1000 : null;
       ws.getCell(r, 6).value = 1;
       ws.getCell(r, 7).value = isReady ? 'Ready' : 'In maturation';
-      // H, I (Counted kg / pcs), L (Reason), M (Notes) stay blank for the counter to fill.
-      ws.getCell(r, 10).value = { formula: `IF(H${r}="","",ROUND(H${r}-E${r},2))` };
-      ws.getCell(r, 11).value = { formula: `IF(I${r}="","",I${r}-F${r})` };
-      if (reasonValidation) ws.getCell(r, 12).dataValidation = { ...reasonValidation };
+      applyStyle(ws.getCell(r, 8), CHECKBOX_STYLE);
+      ws.getCell(r, 8).value = CHECKBOX;
+      // I, J (Counted kg / pcs), M (Reason), N (Notes) stay blank for the counter to fill.
+      ws.getCell(r, 11).value = { formula: `IF(I${r}="","",ROUND(I${r}-E${r},2))` };
+      ws.getCell(r, 12).value = { formula: `IF(J${r}="","",J${r}-F${r})` };
+      if (reasonValidation) ws.getCell(r, 13).dataValidation = { ...reasonValidation };
       r += 1;
     }
   }
@@ -162,10 +178,10 @@ function fillCountSheet(wb, items, now) {
   const lastDataRow = totalRow - 1;
   ws.getCell(totalRow, 5).value  = { formula: `SUM(E5:E${lastDataRow})` };
   ws.getCell(totalRow, 6).value  = { formula: `SUM(F5:F${lastDataRow})` };
-  ws.getCell(totalRow, 8).value  = { formula: `SUM(H5:H${lastDataRow})` };
   ws.getCell(totalRow, 9).value  = { formula: `SUM(I5:I${lastDataRow})` };
   ws.getCell(totalRow, 10).value = { formula: `SUM(J5:J${lastDataRow})` };
   ws.getCell(totalRow, 11).value = { formula: `SUM(K5:K${lastDataRow})` };
+  ws.getCell(totalRow, 12).value = { formula: `SUM(L5:L${lastDataRow})` };
   ws.getCell(totalRow, 4).value  = 'TOTAL';
 
   return { totalRow, lastDataRow, originalTotalRow };
