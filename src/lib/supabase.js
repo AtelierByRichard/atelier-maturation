@@ -291,6 +291,24 @@ export async function nextOpeningSequence(receivingDate) {
 // ── ITEMS (per-piece tracking) ────────────────────────────
 
 /**
+ * Every live piece (maturing or ready) across the whole stock, with its
+ * batch/product/pig context — one row per physical item. Used for the
+ * inventory count export, where each item gets its own line.
+ */
+export async function fetchActiveItems() {
+  const { data, error } = await supabase
+    .from('items')
+    .select(`
+      *,
+      batches (batch_code, start_date, ready_date, dimension_cm, cut_weight_kg, products (*)),
+      pigs (receiving_date)
+    `)
+    .in('status', ['maturing', 'ready']);
+  handleError(error, 'fetchActiveItems');
+  return data;
+}
+
+/**
  * All items for a batch, lowest sequence number first.
  */
 export async function fetchItems(batchId) {

@@ -2,10 +2,11 @@
 // ATELIER BY RICHARD — Live Inventory Count export
 // ============================================================
 // Downloads the physical-count workbook (public/templates/inventory-count-template.xlsx)
-// with the "Count Sheet" tab filled from today's live active batches,
+// with the "Count Sheet" tab filled from today's live active pieces,
 // grouped by product with a green header band per product (same style as
-// "Count Sheet (Pieces)"), one row per batch underneath. Count Sheet's own
-// Source line is refreshed with today's date and totals.
+// "Count Sheet (Pieces)"). One row = one physical item — a batch holding
+// 5 pieces gets 5 lines, each with its own tracking number. Count Sheet's
+// own Source line is refreshed with today's date and totals.
 //
 // Nothing else in the workbook is redesigned: Instructions, Count Sheet
 // (Pieces) and Reconciliation's wording/formulas are left exactly as
@@ -14,7 +15,7 @@
 // every time (its row count changes daily) — only the row-number half of
 // those ranges is touched, never their shape or wording.
 
-import { fetchBatches } from './supabase.js';
+import { fetchActiveItems } from './supabase.js';
 import { calcBatchStatus } from './calculations.js';
 
 const TEMPLATE_URL = '/templates/inventory-count-template.xlsx';
@@ -74,10 +75,11 @@ const PRODUCT_ORDER = [
 /**
  * Fills "Count Sheet" grouped by product — a green header band per product
  * (matching "Count Sheet (Pieces)"'s banner style) with one row per live
- * active batch under it. The block is rebuilt to the exact size needed
- * every time, since which products have stock changes day to day.
+ * physical item underneath. One item = one line, with its own tracking
+ * number, not one line per batch. The block is rebuilt to the exact size
+ * needed every time, since stock changes day to day.
  */
-function fillCountSheet(wb, batches, now) {
+function fillCountSheet(wb, items, now) {
   const ws = wb.getWorksheet('Count Sheet');
   const piecesWs = wb.getWorksheet('Count Sheet (Pieces)');
   const FIRST_ROW = 5;
@@ -95,25 +97,25 @@ function fillCountSheet(wb, batches, now) {
   for (let c = 1; c <= 13; c++) headerStyle[c] = cloneStyle(piecesWs.getCell(FIRST_ROW, c));
   const headerRowHeight = piecesWs.getRow(FIRST_ROW).height;
 
-  // Group live batches by product code, in the Reconciliation tab's order;
+  // Group live items by product code, in the Reconciliation tab's order;
   // any product code that isn't in that list is appended at the end so
   // nothing is silently dropped.
   const byCode = new Map();
-  for (const b of batches) {
-    const code = b.products?.code || '—';
+  for (const it of items) {
+    const code = it.batches?.products?.code || '—';
     if (!byCode.has(code)) byCode.set(code, []);
-    byCode.get(code).push(b);
+    byCode.get(code).push(it);
   }
   const orderedCodes = [
     ...PRODUCT_ORDER.filter((c) => byCode.has(c)),
     ...[...byCode.keys()].filter((c) => !PRODUCT_ORDER.includes(c)).sort(),
   ];
   const groups = orderedCodes.map((code) => {
-    const list = [...byCode.get(code)].sort((a, b) => (a.batch_code || '').localeCompare(b.batch_code || ''));
-    return { code, name: list[0]?.products?.name || code, batches: list };
+    const list = [...byCode.get(code)].sort((a, b) => (a.item_code || '').localeCompare(b.item_code || ''));
+    return { code, name: list[0]?.batches?.products?.name || code, items: list };
   });
 
-  const neededRows = groups.reduce((s, g) => s + 1 + g.batches.length, 0);
+  const neededRows = groups.reduce((s, g) => s + 1 + g.items.length, 0);
   const delta = neededRows - (originalTotalRow - FIRST_ROW);
 
   if (delta > 0) {
@@ -130,23 +132,24 @@ function fillCountSheet(wb, batches, now) {
     ws.getCell(r, 1).value = `${group.name}  (${group.code})`;
     r += 1;
 
-    for (const b of group.batches) {
+    for (const it of group.items) {
       for (let c = 1; c <= 13; c++) applyStyle(ws.getCell(r, c), dataStyle[c]);
       ws.getRow(r).height = dataRowHeight;
 
-      const isReady = calcBatchStatus(b, b.products, b.dimension_cm).isReady;
-      ws.getCell(r, 1).value = b.products?.name || '';
-      ws.getCell(r, 2).value = b.products?.code || '';
-      ws.getCell(r, 3).value = b.batch_code || '';
+      const batch = it.batches;
+      const isReady = calcBatchStatus(batch, batch?.products, batch?.dimension_cm).isReady;
+      ws.getCell(r, 1).value = batch?.products?.name || '';
+      ws.getCell(r, 2).value = batch?.products?.code || '';
+      ws.getCell(r, 3).value = it.item_code || '';
 
-      const reception = parseDateOnly(b.pigs?.receiving_date);
+      const reception = parseDateOnly(it.pigs?.receiving_date);
       if (reception) {
         ws.getCell(r, 4).value = reception;
         ws.getCell(r, 4).numFmt = 'm/d/yyyy';
       }
 
-      ws.getCell(r, 5).value = b.current_weight_kg != null ? Number(b.current_weight_kg) : null;
-      ws.getCell(r, 6).value = b.current_pieces != null ? b.current_pieces : null;
+      ws.getCell(r, 5).value = it.weight_g != null ? Number(it.weight_g) / 1000 : null;
+      ws.getCell(r, 6).value = 1;
       ws.getCell(r, 7).value = isReady ? 'Ready' : 'In maturation';
       // H, I (Counted kg / pcs), L (Reason), M (Notes) stay blank for the counter to fill.
       ws.getCell(r, 10).value = { formula: `IF(H${r}="","",ROUND(H${r}-E${r},2))` };
@@ -193,25 +196,25 @@ function retargetReconciliationRanges(wb, originalLastRow, newLastDataRow) {
 }
 
 /**
- * Builds the live workbook from an already-fetched batches array and the
+ * Builds the live workbook from an already-fetched items array and the
  * template's raw bytes. Kept separate from the fetch/download glue below
  * so it can be exercised with synthetic data.
  */
-export async function buildInventoryCountWorkbook(templateBuffer, batches, now = new Date()) {
+export async function buildInventoryCountWorkbook(templateBuffer, items, now = new Date()) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(templateBuffer);
 
-  const sorted = [...batches].sort((a, b) => {
-    const pa = a.products?.name || '';
-    const pb = b.products?.name || '';
+  const sorted = [...items].sort((a, b) => {
+    const pa = a.batches?.products?.name || '';
+    const pb = b.batches?.products?.name || '';
     if (pa !== pb) return pa.localeCompare(pb);
-    return (a.batch_code || '').localeCompare(b.batch_code || '');
+    return (a.item_code || '').localeCompare(b.item_code || '');
   });
 
-  const batchCount = sorted.length;
-  const pieceCount = sorted.reduce((s, b) => s + (b.current_pieces || 0), 0);
-  const totalKg    = sorted.reduce((s, b) => s + (Number(b.current_weight_kg) || 0), 0);
+  const pieceCount = sorted.length;
+  const batchCount = new Set(sorted.map((it) => it.batch_id)).size;
+  const totalKg    = sorted.reduce((s, it) => s + (it.weight_g != null ? Number(it.weight_g) / 1000 : 0), 0);
   const totalKgStr = totalKg.toFixed(1);
 
   const { lastDataRow, originalTotalRow } = fillCountSheet(wb, sorted, now);
@@ -227,20 +230,20 @@ export async function buildInventoryCountWorkbook(templateBuffer, batches, now =
   return wb;
 }
 
-/** Fetches live batches + the template, builds the workbook, and triggers a browser download. */
+/** Fetches live items + the template, builds the workbook, and triggers a browser download. */
 export async function downloadInventoryCount() {
   const now = new Date();
-  const [batches, templateResp] = await Promise.all([
-    fetchBatches(['maturing', 'ready']),
+  const [items, templateResp] = await Promise.all([
+    fetchActiveItems(),
     fetch(TEMPLATE_URL),
   ]);
   if (!templateResp.ok) throw new Error('Could not load the inventory count template.');
-  if (!batches || batches.length === 0) {
-    throw new Error('No active batches were found — the Count Sheet would come out empty. Check your connection and try again.');
+  if (!items || items.length === 0) {
+    throw new Error('No active pieces were found — the Count Sheet would come out empty. Check your connection and try again.');
   }
   const templateBuffer = await templateResp.arrayBuffer();
 
-  const wb = await buildInventoryCountWorkbook(templateBuffer, batches, now);
+  const wb = await buildInventoryCountWorkbook(templateBuffer, items, now);
 
   const outBuffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
