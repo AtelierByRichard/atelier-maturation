@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import PieceLookup from '../components/PieceLookup.jsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { downloadInventoryCount } from '../lib/inventoryExport.js';
 import {
   fetchReadyBatches,
   fetchUpcomingBatches,
@@ -95,6 +96,7 @@ export default function Dashboard() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [exportingCount, setExportingCount] = useState(false);
   const [productFilter, setProductFilter] = useState('');
   const [batchSearch,   setBatchSearch]   = useState('');
   const reportRef = useRef(null);
@@ -213,6 +215,19 @@ export default function Dashboard() {
     }
   };
 
+  const handleExportInventoryCount = async () => {
+    if (exportingCount) return;
+    setExportingCount(true);
+    try {
+      await downloadInventoryCount();
+    } catch (err) {
+      console.error('Inventory count export failed:', err);
+      alert('Could not build the inventory count file. Please try again.');
+    } finally {
+      setExportingCount(false);
+    }
+  };
+
   // Filter the active-batch table by product and by free text, so a
   // list of 60+ batches can be narrowed to what you're looking at.
   const productNames = [...new Set(allActive.map(b => b.products?.name).filter(Boolean))]
@@ -277,13 +292,23 @@ export default function Dashboard() {
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <button
-          onClick={handleExportPDF}
-          disabled={exporting}
-          className="btn-secondary text-sm flex items-center gap-1.5"
-        >
-          {exporting ? 'Generating…' : '↓ Export PDF'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportInventoryCount}
+            disabled={exportingCount}
+            className="btn-secondary text-sm flex items-center gap-1.5"
+            title="Physical inventory count sheet, filled with today's live stock"
+          >
+            {exportingCount ? 'Building…' : '↓ Inventory Count (.xlsx)'}
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting}
+            className="btn-secondary text-sm flex items-center gap-1.5"
+          >
+            {exporting ? 'Generating…' : '↓ Export PDF'}
+          </button>
+        </div>
       </div>
 
       <div ref={reportRef}>

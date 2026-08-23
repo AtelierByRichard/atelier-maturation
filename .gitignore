@@ -7,3 +7,7 @@ dist/
 
 # Vite writes these on every build
 vite.config.js.timestamp-*.mjs
+
+# Scratch files from local dev/testing
+__stub_*.js
+test_export.mjs
