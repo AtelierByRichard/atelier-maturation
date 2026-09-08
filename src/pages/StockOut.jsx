@@ -181,10 +181,10 @@ function MovementForm({ type, batches, onSaved }) {
           <div>
             <label className="label">Quantity (kg)</label>
             <input
-              className="input" type="number" step="0.01" min="0"
+              className="input" type="number" step="0.001" min="0"
               value={form.quantity_kg}
               onChange={e => set('quantity_kg', e.target.value)}
-              placeholder="e.g. 1.25"
+              placeholder="e.g. 1.250"
             />
           </div>
           {!byPiece && (
@@ -314,7 +314,7 @@ function AdjustmentForm({ batches, onSaved }) {
         <div>
           <label className="label">Actual weight (kg)</label>
           <input
-            className="input" type="number" step="0.01" min="0"
+            className="input" type="number" step="0.001" min="0"
             value={form.new_weight_kg}
             onChange={e => set('new_weight_kg', e.target.value)}
             placeholder={selectedBatch ? String(selectedBatch.current_weight_kg || '') : ''}

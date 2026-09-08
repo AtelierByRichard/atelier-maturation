@@ -71,7 +71,7 @@ CREATE TABLE batches (
   ready_date      DATE,                                -- Calculated ready-for-sale date (set on save)
 
   -- Running stock (decremented by stock movements and adjustments)
-  current_weight_kg  NUMERIC(8,2),                    -- Updated as stock moves out
+  current_weight_kg  NUMERIC(9,3),                    -- Updated as stock moves out (3 decimals, sql_18)
   current_pieces     INTEGER,                         -- Updated as stock moves out
 
   status          TEXT NOT NULL DEFAULT 'maturing'
@@ -104,7 +104,7 @@ CREATE TABLE stock_movements (
   internal_sub_type TEXT CHECK (internal_sub_type IN ('board','tasting','promo')),
 
   -- Quantities — both fields available, fill whichever applies
-  quantity_kg     NUMERIC(8,2),
+  quantity_kg     NUMERIC(9,3),                       -- 3 decimals (sql_18, 2026-09-08)
   quantity_pcs    INTEGER,
 
   movement_date   DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -132,8 +132,8 @@ CREATE TABLE inventory_adjustments (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   batch_id            UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
 
-  previous_weight_kg  NUMERIC(8,2),
-  new_weight_kg       NUMERIC(8,2),
+  previous_weight_kg  NUMERIC(9,3),                   -- 3 decimals (sql_18, 2026-09-08)
+  new_weight_kg       NUMERIC(9,3),                   -- 3 decimals (sql_18, 2026-09-08)
   previous_pieces     INTEGER,
   new_pieces          INTEGER,
 
